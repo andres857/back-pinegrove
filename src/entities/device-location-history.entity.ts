@@ -1,0 +1,25 @@
+// src/entities/device-location-history.entity.ts
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn } from 'typeorm';
+import { SigfoxDevice } from './sigfox-device.entity';
+import { Location } from './location.entity';
+
+@Entity()
+export class DeviceLocationHistory {
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @Column('decimal', { precision: 10, scale: 8 })
+    latitude: number;
+
+    @Column('decimal', { precision: 11, scale: 8 })
+    longitude: number;
+
+    @CreateDateColumn()
+    timestamp: Date;
+
+    @ManyToOne(() => SigfoxDevice, device => device.locationHistory)
+    device: SigfoxDevice;
+
+    @ManyToOne(() => Location, { nullable: true })
+    location: Location;
+}

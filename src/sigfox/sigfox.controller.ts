@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Body } from '@nestjs/common';
+import { Controller, Get, Query, Body, Post } from '@nestjs/common';
 
 interface SigfoxCallbackDto {
     messageType: string;
@@ -28,12 +28,12 @@ interface SigfoxResponse {
 
 @Controller('sigfox')
 export class SigfoxController {
-    @Get('manitou/callback')
+    @Post('manitou/callback')
     async handleCallback(
         @Query() queryParams: SigfoxQueryParams,
         @Body() body: SigfoxCallbackDto,
     ): Promise<SigfoxResponse> {
-        console.log('Received Sigfox callback:');
+        console.log('Received Sigfox callback oks:');
         console.log('Query Params:', queryParams);
         console.log('Body:', body);
         try {
@@ -51,7 +51,7 @@ export class SigfoxController {
             const response: SigfoxResponse = {
                 deviceId: body.device,
                 // Datos downlink opcionales (8 bytes máximo en hexadecimal)
-                downlinkData: "0102030405060708", // Ejemplo de datos downlink
+                // downlinkData: "0102030405060708", // Ejemplo de datos downlink
                 ack: true  // Confirmación de que recibimos el mensaje correctamente
             };
 

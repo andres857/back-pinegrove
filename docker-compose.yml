@@ -7,13 +7,30 @@ services:
       - ./:/usr/src/app
       # - ./node_modules:/usr/src/app/node_modules
     ports:
-      - 3000:3000
+      - 3005:3000
     logging:
       driver: "json-file"
       options:
         max-size: "5m"
-    networks:
-      - nettrotter
+  
+  postgres:
+    image: postgres:14-alpine
+    restart: unless-stopped
+    ports:
+      - 5428:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_DEVEL}
+      - POSTGRES_USER=${POSTGRES_USER_DEVEL}
+      - POSTGRES_DB=${POSTGRES_DB_DEVEL}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+
+volumes:
+  postgres_data:
 
 networks:
   nettrotter:
