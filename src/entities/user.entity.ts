@@ -31,7 +31,6 @@ export class User {
     @ManyToOne(() => Client, client => client.users)
     client: Client;
 
-    @ManyToMany(() => Role, role => role.users)
-    @JoinTable()
-    roles: Role[];
+    @ManyToOne(() => Role, role => role.users)
+    role: Role;
 }
