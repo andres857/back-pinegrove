@@ -16,6 +16,7 @@ import { DeviceLocationHistory } from './entities/device-location-history.entity
 import { Client } from './entities/client.entity';
 import { User } from './entities/user.entity';
 import { Role } from './entities/role.entity';
+import { LocationsModule } from './locations/locations.module';
 
 
 @Module({
@@ -45,7 +46,8 @@ import { Role } from './entities/role.entity';
     SigfoxModule,
     UsersModule,
     ClientsModule,
-    RolesModule
+    RolesModule,
+    LocationsModule
   ],
   controllers: [AppController],
   providers: [AppService],

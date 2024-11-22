@@ -20,7 +20,6 @@ export class RolesService {
         if (existingRole) {
             throw new ConflictException('Role name already exists');
         }
-        
         // Crear nuevo rol
         const role = this.roleRepository.create(createRoleDto);
         return await this.roleRepository.save(role);
