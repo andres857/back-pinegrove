@@ -34,4 +34,12 @@ export class ClientsService {
     async findOne(id: string): Promise<Client> {
         return await this.clientRepository.findOneBy({ id });
     }
+
+    async findUsersByIdClient(clientId: string) {
+        const client = await this.clientRepository.findOne({
+            where: { id: clientId },
+            relations: { users: true }
+        });
+        return client.users;
+    }
 }

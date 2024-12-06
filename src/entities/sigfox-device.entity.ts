@@ -1,16 +1,23 @@
 // src/entities/sigfox-device.entity.ts
-import { Entity, Column, PrimaryColumn, OneToMany, ManyToOne } from 'typeorm';
+import { Entity, Column, PrimaryColumn, OneToMany, ManyToOne, PrimaryGeneratedColumn, JoinColumn } from 'typeorm';
 import { SigfoxMessage } from './sigfox-message.entity';
 import { Client } from './client.entity';
 import { DeviceLocationHistory } from './device-location-history.entity';
 
 @Entity()
 export class SigfoxDevice {
-    @PrimaryColumn()
+    @PrimaryGeneratedColumn('uuid')
     deviceId: string;
 
     @Column({ nullable: true })
     friendlyName: string;
+
+    @Column( { 
+        unique: true, 
+        nullable: false, // No permite valores nulos
+        name: 'sigfox_id' // Nombre personalizado en la base de datos
+    })
+    SigfoxId: string;
 
     @Column()
     deviceType: string;
@@ -28,6 +35,7 @@ export class SigfoxDevice {
     lastLocationUpdate: Date;
 
     @ManyToOne(() => Client, client => client.devices)
+    @JoinColumn({ name: 'clientId' })  // Especifica el nombre exacto
     client: Client;
 
     @OneToMany(() => SigfoxMessage, message => message.device)

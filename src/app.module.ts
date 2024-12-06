@@ -17,6 +17,8 @@ import { Client } from './entities/client.entity';
 import { User } from './entities/user.entity';
 import { Role } from './entities/role.entity';
 import { LocationsModule } from './locations/locations.module';
+import { DeviceModule } from './device/device.module';
+import { SigfoxMessagesModule } from './sigfox-messages/sigfox-messages.module';
 
 
 @Module({
@@ -47,7 +49,9 @@ import { LocationsModule } from './locations/locations.module';
     UsersModule,
     ClientsModule,
     RolesModule,
-    LocationsModule
+    LocationsModule,
+    DeviceModule,
+    SigfoxMessagesModule
   ],
   controllers: [AppController],
   providers: [AppService],

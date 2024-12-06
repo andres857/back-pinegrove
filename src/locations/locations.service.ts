@@ -55,6 +55,4 @@ export class LocationsService {
         Object.assign(location, updateLocationDto);
         return await this.locationRepository.save(location);
     }
-
-
 }

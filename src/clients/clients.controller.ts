@@ -1,11 +1,13 @@
-import { Controller, Post, Body, Get, Param } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param,ParseUUIDPipe } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { Client } from 'src/entities/client.entity';
 import { CreateClientDto } from './dto/create-client.dto';
 
 @Controller('clients')
 export class ClientsController {
-    constructor(private readonly clientService: ClientsService) {}
+    constructor(
+        private readonly clientService: ClientsService    
+    ) {}
 
     @Get()
     findAll(): Promise<Client[]> {
@@ -20,5 +22,12 @@ export class ClientsController {
     @Post()
     create(@Body() createClientDto: CreateClientDto): Promise<Client> {
         return this.clientService.create(createClientDto);
+    }
+
+    @Get(':id/users')
+    findUsers(@Param('id', new ParseUUIDPipe()) id: string){
+        console.log(id, typeof(id));
+        
+        return this.clientService.findUsersByIdClient(id)
     }
 }
