@@ -16,6 +16,7 @@ import { Client } from 'src/entities/client.entity';
     ClientsModule,
   ],
   providers: [DeviceService],
-  controllers: [DeviceController]
+  controllers: [DeviceController],
+  exports: [DeviceService]
 })
 export class DeviceModule {}

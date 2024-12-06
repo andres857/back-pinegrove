@@ -35,11 +35,7 @@ export class DeviceService {
         }
 
         createSigfoxDeviceDto.lastLocationUpdate = new Date();
-        console.log(createSigfoxDeviceDto, '---------------------');
         
-        // const sigfoxDevice = this.sigfoxDeviceRepository.create(createSigfoxDeviceDto);
-        // return await this.sigfoxDeviceRepository.save(sigfoxDevice);
-
         // Creamos el dispositivo con la relación
         const sigfoxDevice = this.sigfoxDeviceRepository.create({
             ...createSigfoxDeviceDto,
