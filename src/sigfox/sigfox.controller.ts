@@ -1,4 +1,8 @@
 import { Controller, Get, Query, Body, Post } from '@nestjs/common';
+import { SigfoxMessagesService } from 'src/sigfox-messages/sigfox-messages.service';
+
+import { CreateSigfoxMessageDto } from 'src/sigfox-messages/dto/create-message.dto';
+import { SigfoxMessage } from 'src/entities/sigfox-message.entity';
 
 interface SigfoxCallbackDto {
     messageType: string;
@@ -26,41 +30,20 @@ interface SigfoxResponse {
     ack: boolean;
 }
 
+
 @Controller('sigfox')
 export class SigfoxController {
+    constructor (private readonly sigfoxMessagesService:SigfoxMessagesService ){}
+
     @Post('manitou/callback')
-    async handleCallback(
-        @Query() queryParams: SigfoxQueryParams,
-        @Body() body: SigfoxCallbackDto,
-    ): Promise<SigfoxResponse> {
-        console.log('Received Sigfox callback oks:');
-        console.log('Query Params:', queryParams);
-        console.log('Body:', body);
-        try {
-            // Log detallado de cada campo importante
-            console.log(`Time: ${queryParams.time}`);
-            console.log(`Sequence Number: ${queryParams.seqNumber}`);
-            console.log(`Device Type: ${body.deviceType}`);
-            console.log(`Device: ${body.device}`);
-            console.log(`Data: ${body.data}`);
-            console.log(`Link Quality: ${body.linkQuality}`);
-            console.log(`Operator: ${body.operatorName}`);
-            console.log(`Country: ${body.countryCode}`);
-
-            // Preparar respuesta para Sigfox
-            const response: SigfoxResponse = {
-                deviceId: body.device,
-                // Datos downlink opcionales (8 bytes máximo en hexadecimal)
-                // downlinkData: "0102030405060708", // Ejemplo de datos downlink
-                ack: true  // Confirmación de que recibimos el mensaje correctamente
-            };
-
-            console.log('Sending response to Sigfox:', response);
-            return response;
-
-        } catch (error) {
-            console.error('Error processing Sigfox callback:', error);
-            throw error;
-        }
-  }
+    async create(@Body() createSigfoxMessageDto: CreateSigfoxMessageDto, @Query() queryParams: SigfoxQueryParams) {
+        const device =  await this.sigfoxMessagesService.create(createSigfoxMessageDto);
+        // Preparar respuesta para Sigfox
+        const response: SigfoxResponse = {
+            deviceId: createSigfoxMessageDto.device,
+            ack: true  // Confirmación de que recibimos el mensaje correctamente
+        };
+        console.log('Sending response to Sigfox:', response);
+        return response;
+    }
 }

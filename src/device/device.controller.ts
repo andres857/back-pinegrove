@@ -2,7 +2,7 @@ import { Controller, Post, Body, Get, Param, Put } from '@nestjs/common';
 import { DeviceService } from './device.service';
 
 import { SigfoxDevice } from 'src/entities/sigfox-device.entity';
-import { CreateSigfoxDeviceDto, UpdateSigfoxDeviceDto } from './dto/create-device.dto';
+import { CreateSigfoxDeviceDto, UpdateSigfoxDeviceDto } from 'src/device/dto/create-device.dto';
 
 @Controller('devices')
 export class DeviceController {

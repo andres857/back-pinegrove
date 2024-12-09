@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { SigfoxController } from './sigfox.controller'
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { SigfoxMessagesModule } from 'src/sigfox-messages/sigfox-messages.module';
+import { DeviceModule } from 'src/device/device.module';
+
 // entidades 
 import { SigfoxDevice } from '../entities/sigfox-device.entity';
 import { SigfoxMessage } from '../entities/sigfox-message.entity';
@@ -16,7 +19,9 @@ import { SigfoxService } from './sigfox.service';
             SigfoxMessage,
             Location,
             DeviceLocationHistory
-        ])
+        ]),
+        SigfoxMessagesModule,
+        DeviceModule
     ],
     controllers: [ SigfoxController ],
     providers: [SigfoxService]

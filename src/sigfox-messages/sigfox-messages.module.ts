@@ -16,6 +16,7 @@ import { SigfoxDevice } from 'src/entities/sigfox-device.entity';
     DeviceModule
   ],
   providers: [SigfoxMessagesService],
-  controllers: [SigfoxMessagesController]
+  controllers: [SigfoxMessagesController],
+  exports: [SigfoxMessagesService]
 })
 export class SigfoxMessagesModule {}
