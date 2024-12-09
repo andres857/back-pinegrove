@@ -1,11 +1,12 @@
 import { Repository } from 'typeorm';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { DeviceService } from 'src/device/device.service';
 import { SigfoxDevice } from 'src/entities/sigfox-device.entity';
 
 import { SigfoxMessage } from 'src/entities/sigfox-message.entity';
 import { CreateSigfoxMessageDto } from './dto/create-message.dto';
-
+import { CreateSigfoxDeviceDto } from 'src/device/dto/create-device.dto';
 
 @Injectable()
 export class SigfoxMessagesService {
@@ -13,7 +14,8 @@ export class SigfoxMessagesService {
         @InjectRepository(SigfoxMessage)
         private sigfoxMessageRepository: Repository<SigfoxMessage>,
         @InjectRepository(SigfoxDevice)
-        private sigfoxDeviceRepository: Repository<SigfoxDevice>
+        private sigfoxDeviceRepository: Repository<SigfoxDevice>,
+        private readonly deviceService:DeviceService 
     ){}
 
     async findAll(): Promise<SigfoxMessage[]> {
@@ -29,15 +31,37 @@ export class SigfoxMessagesService {
 
     async create(createMessageDto: CreateSigfoxMessageDto): Promise<SigfoxMessage> {
         // Primero verificamos que el dispositivo al que se asociará el mensaje existe
-        const device = await this.sigfoxDeviceRepository.findOne({
+        let device = await this.sigfoxDeviceRepository.findOne({
             where: { SigfoxId: createMessageDto.device }
         });
 
-        // Si no encontramos el dispositivo, lanzamos una excepción
+        // Si no encontramos el dispositivo, lo creamos
         if (!device) {
-            throw new NotFoundException(
-                `No se encontró el dispositivo con ID ${createMessageDto.device}`
-            );
+            console.log('CREANDO NUEVO DEVICE');
+            
+            const createDeviceDto: CreateSigfoxDeviceDto = {
+                // deviceId: createMessageDto.device,
+                SigfoxId: createMessageDto.device,
+                deviceType: createMessageDto.deviceType,
+                deviceTypeId: createMessageDto.deviceTypeId,
+                clientId: createMessageDto.clientId,
+
+                // Actualizamos la ubicación si está disponible
+                lastLatitude: createMessageDto.computedLocation?.lat,
+                lastLongitude: createMessageDto.computedLocation?.lng,
+                lastLocationUpdate: new Date(),
+            };
+            console.log("*****",createDeviceDto );
+            device = await this.deviceService.create(createDeviceDto);
+            
+        } else {
+            if (createMessageDto.computedLocation) {
+                await this.deviceService.update(createMessageDto.device, {
+                    lastLatitude: createMessageDto.computedLocation.lat,
+                    lastLongitude: createMessageDto.computedLocation.lng,
+                    lastLocationUpdate: new Date(),
+                });
+            }
         }
 
         // Creamos una nueva instancia del mensaje con los datos recibidos

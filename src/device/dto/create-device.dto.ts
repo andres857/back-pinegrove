@@ -2,8 +2,8 @@ import { IsString, IsUUID, IsOptional, IsNumber, IsDate, Min, Max, IsNotEmpty } 
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateSigfoxDeviceDto {
-    @IsString()
-    deviceId: string;
+    // @IsString()
+    // deviceId: string;
 
     @IsString()
     @IsNotEmpty({ message: 'SigfoxId is required' })

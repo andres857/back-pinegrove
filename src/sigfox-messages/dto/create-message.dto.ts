@@ -32,6 +32,19 @@ class ComputedLocationDto {
 }
 
 export class CreateSigfoxMessageDto {
+
+    @IsOptional()
+    @IsString()
+    deviceType?: string;
+
+    @IsOptional()
+    @IsString()
+    deviceTypeId?: string;
+
+    @IsOptional()
+    @IsString()
+    clientId?: string;
+
     @IsString()
     @IsNotEmpty()
     messageType: string;
@@ -66,7 +79,7 @@ export class CreateSigfoxMessageDto {
     @Type(() => ComputedLocationDto)
     computedLocation: ComputedLocationDto;
 
-    @IsUUID()
+    @IsString()
     @IsNotEmpty()
     device: string; // Para vincular el mensaje con un dispositivo
 }

@@ -46,11 +46,11 @@ export class DeviceService {
 
     }
 
-    async update(deviceId: string, updateSigfoxDeviceDto: UpdateSigfoxDeviceDto): Promise<SigfoxDevice> {
+    async update(sigfoxId: string, updateSigfoxDeviceDto: UpdateSigfoxDeviceDto): Promise<SigfoxDevice> {
         
         // Primero verificamos que el dispositivo existe
         const existingDevice = await this.sigfoxDeviceRepository.findOne({
-            where: { deviceId },
+            where: { SigfoxId: sigfoxId },
             relations: ['client'] // Incluimos la relación con el cliente si es necesaria
         });
     
@@ -77,11 +77,9 @@ export class DeviceService {
             const client = await this.clientRepository.findOne({
                 where: { id: updateSigfoxDeviceDto.clientId }
             });
-    
             if (!client) {
                 throw new NotFoundException('Client not found');
             }
-    
             existingDevice.client = client;
         }
     
