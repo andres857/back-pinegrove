@@ -86,4 +86,26 @@ export class DeviceService {
         // Guardamos los cambios en la base de datos
         return await this.sigfoxDeviceRepository.save(existingDevice);
     }
+
+    async findAll(): Promise<SigfoxDevice[]> {
+        return await this.sigfoxDeviceRepository.find({
+            relations: ['client', 'messages', 'locationHistory'],
+            order: {
+                friendlyName: 'ASC'
+            }
+        });
+    }
+    
+    async findOne(id: string): Promise<SigfoxDevice> {
+        const device = await this.sigfoxDeviceRepository.findOne({
+            where: { deviceId: id },
+            relations: ['client', 'messages', 'locationHistory']
+        });
+
+        if (!device) {
+            throw new NotFoundException(`Device with ID ${id} not found`);
+        }
+
+        return device;
+    }
 }

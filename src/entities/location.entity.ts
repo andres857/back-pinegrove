@@ -10,6 +10,24 @@ export class Location {
     @Column()
     name: string;
 
+    @Column({ nullable: true })
+    address: string;
+
+    @Column({ nullable: true })
+    country: string;
+
+    @Column({ nullable: true })
+    city: string;
+
+    @Column({ nullable: true })
+    province: string;
+
+    @Column({ nullable: true })
+    microbs: string;
+
+    @Column({ nullable: true })
+    zip: number;
+
     @Column('decimal', { precision: 10, scale: 8 })
     latitude: number;
 
@@ -20,7 +38,7 @@ export class Location {
     radiusMeters: number;
 
     @Column({ nullable: true })
-    description: string;
+    notes: string;
 
     // @ManyToOne(() => Client, client => client.locations)
     // client: Client;

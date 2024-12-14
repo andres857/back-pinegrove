@@ -4,6 +4,24 @@ export class CreateLocationDto {
     @IsString()
     name: string;
 
+    @IsString()
+    address: string;
+
+    @IsString()
+    country: string;
+
+    @IsString()
+    city: string;
+
+    @IsString()
+    province: string;
+
+    @IsString()
+    microbs: string;
+
+    @IsString()
+    zip: number;
+
     @IsNumber()
     @Min(-90)
     @Max(90)

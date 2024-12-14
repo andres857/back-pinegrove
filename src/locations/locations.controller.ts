@@ -3,6 +3,7 @@ import { LocationsService } from './locations.service';
 import { Location } from 'src/entities/location.entity';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
+import { RangeCheckDto } from './dto/isrange.dto';
 
 @Controller('locations')
 export class LocationsController {
@@ -13,6 +14,11 @@ export class LocationsController {
         return this.locationsService.findAll();
     }
 
+    @Get(':id')
+    async findOne(@Param('id') id: string): Promise<Location> {
+        return this.locationsService.findOne(id);
+    }
+    
     @Post()
     create(@Body() createLocationDto: CreateLocationDto): Promise<Location> {
         return this.locationsService.create(createLocationDto);
@@ -21,5 +27,14 @@ export class LocationsController {
     @Put(':id')
     update(@Param('id') id: string, @Body() updateLocationDto: UpdateLocationDto): Promise<Location> {
         return this.locationsService.update(id, updateLocationDto);
+    }
+
+    @Post('/isrange')
+    isRange(@Body() rangeData: RangeCheckDto) {
+        return this.locationsService.calculateDistance(
+            rangeData.coordinate1,
+            rangeData.coordinate2,
+            rangeData.radius
+        );
     }
 }

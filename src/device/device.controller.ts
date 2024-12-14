@@ -8,10 +8,16 @@ import { CreateSigfoxDeviceDto, UpdateSigfoxDeviceDto } from 'src/device/dto/cre
 export class DeviceController {
     constructor (private readonly deviceService:DeviceService ){}
 
-    // @Get()
-    // findAll(): Promise<SigfoxDevice[]>{
-    //     return this.deviceService.findAll();
-    // }
+    @Get()
+    findAll(): Promise<SigfoxDevice[]>{
+        return this.deviceService.findAll();
+    }
+
+    @Get(':id')
+    findOne(@Param('id') id:string ): Promise<SigfoxDevice>{
+        return this.deviceService.findOne(id);
+    }
+
     @Post()
     create(@Body() createSigfoxDeviceDto: CreateSigfoxDeviceDto): Promise<SigfoxDevice> {
         return this.deviceService.create(createSigfoxDeviceDto);
