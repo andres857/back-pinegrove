@@ -9,12 +9,24 @@ export class SigfoxMessagesController {
     constructor (private readonly sigfoxMessagesService:SigfoxMessagesService ){}
 
     @Get()
-    findAll(): Promise<SigfoxMessage[]>{
+    async findAll(): Promise<SigfoxMessage[]>{
         return this.sigfoxMessagesService.findAll();
     }
 
+    @Get('/device/:id')
+    async findOne(@Param('id') id: string): Promise<SigfoxMessage[]> {
+        console.log('pp');
+        
+        return this.sigfoxMessagesService.getMessagesByDeviceId(id);
+    }
+
+    @Get('/device/:id/last')
+    async findLastMessage(@Param('id') id: string): Promise<SigfoxMessage> {
+        return this.sigfoxMessagesService.getLatestMessage(id);
+    }
+
     @Post()
-    create(@Body() createSigfoxMessageDto: CreateSigfoxMessageDto): Promise<SigfoxMessage> {
+    async create(@Body() createSigfoxMessageDto: CreateSigfoxMessageDto): Promise<SigfoxMessage> {
         return this.sigfoxMessagesService.create(createSigfoxMessageDto);
     }
 }

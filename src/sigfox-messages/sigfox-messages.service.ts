@@ -19,14 +19,36 @@ export class SigfoxMessagesService {
     ){}
 
     async findAll(): Promise<SigfoxMessage[]> {
-        // Realizamos una consulta que incluye la relación con el dispositivo
-        // Esto nos permite acceder a la información del dispositivo asociado a cada mensaje
         return await this.sigfoxMessageRepository.find({
             relations: ['device'],
             order: {
                 createdAt: 'DESC', // Ordenamos por fecha de creación, más recientes primero
             },
         });
+    }
+
+    async getMessagesByDeviceId(deviceId: string): Promise<SigfoxMessage[]> {
+        const messages = await this.sigfoxMessageRepository.find({
+            where: { device: { deviceId } },
+            relations: ['device'],
+            order: { createdAt: 'DESC' }
+        });
+        if (!messages.length) {
+            throw new NotFoundException(`No messages found for device ${deviceId}`);
+        }
+        return messages;
+    }
+
+    async getLatestMessage(deviceId): Promise<SigfoxMessage> {
+        const message = await this.sigfoxMessageRepository.findOne({
+            where: { device: { deviceId } },
+            relations: ['device'],
+            order: { createdAt: 'DESC' }
+        });
+        if (!message) {
+            throw new NotFoundException(`No messages found for device ${deviceId}`);
+        }    
+        return message;
     }
 
     async create(createMessageDto: CreateSigfoxMessageDto): Promise<SigfoxMessage> {
