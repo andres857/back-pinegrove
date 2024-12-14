@@ -30,7 +30,7 @@ export class ClientsService {
     async findAll(): Promise<Client[]> {
         return await this.clientRepository.find();
     }
-
+    
     async findOne(id: string): Promise<Client> {
         return await this.clientRepository.findOneBy({ id });
     }

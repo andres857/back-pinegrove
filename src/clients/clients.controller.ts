@@ -20,14 +20,24 @@ export class ClientsController {
     }
 
     @Post()
-    create(@Body() createClientDto: CreateClientDto): Promise<Client> {
+    async create(@Body() createClientDto: CreateClientDto): Promise<Client> {
         return this.clientService.create(createClientDto);
     }
 
     @Get(':id/users')
-    findUsers(@Param('id', new ParseUUIDPipe()) id: string){
+    async findUsers(@Param('id', new ParseUUIDPipe()) id: string){
         console.log(id, typeof(id));
         
         return this.clientService.findUsersByIdClient(id)
+    }
+
+    @Get(':id/report')
+    async report(@Param('id', new ParseUUIDPipe()) id: string){
+        console.log(id, typeof(id));
+        
+        // return this.clientService.findUsersByIdClient(id)
+        return {
+            id
+        }
     }
 }

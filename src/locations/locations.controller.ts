@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, Put } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Put,ParseUUIDPipe } from '@nestjs/common';
 import { LocationsService } from './locations.service';
 import { Location } from 'src/entities/location.entity';
 import { CreateLocationDto } from './dto/create-location.dto';
@@ -12,6 +12,11 @@ export class LocationsController {
     @Get()
     findAll(): Promise<Location[]> {
         return this.locationsService.findAll();
+    }
+
+    @Get('client/:id')
+    findAllbyIdClient(@Param('id', new ParseUUIDPipe()) id: string): Promise<Location[]> {
+        return this.locationsService.getLocationsByClientId(id);
     }
 
     @Get(':id')

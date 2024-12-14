@@ -21,7 +21,21 @@ export class LocationsService {
             relations: ['client']
         });
     }
+
+    async getLocationsByClientId(clientId): Promise<Location[]> {
+        const locations = await this.locationRepository.find({
+          where: { clientId },
+          relations: ['client'],
+          order: { name: 'ASC' }
+        });
     
+        if (!locations.length) {
+          throw new NotFoundException(`No locations found for client ${clientId}`);
+        }
+    
+        return locations;
+    }
+
     async create(createLocationDto: CreateLocationDto): Promise<Location> {
         // Verificar si ya existe una location con el mismo nombre
         
@@ -69,6 +83,7 @@ export class LocationsService {
         Object.assign(location, updateLocationDto);
         return await this.locationRepository.save(location);
     }
+
 
     toRadians(degrees: number): number {
         return degrees * (Math.PI / 180);

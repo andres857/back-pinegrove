@@ -95,6 +95,20 @@ export class DeviceService {
             }
         });
     }
+
+    async getDevicesByClientId(clientId): Promise<SigfoxDevice[]> {
+        const devices = await this.sigfoxDeviceRepository.find({
+            where: { client: { id: clientId } },
+            relations: ['client'],
+            order: { friendlyName: 'ASC' }
+        });
+    
+        if (!devices.length) {
+            throw new NotFoundException(`No devices found for client ${clientId}`);
+        }
+    
+        return devices;
+    }
     
     async findOne(id: string): Promise<SigfoxDevice> {
         const device = await this.sigfoxDeviceRepository.findOne({

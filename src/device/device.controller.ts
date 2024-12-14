@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, Put } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Put, ParseUUIDPipe } from '@nestjs/common';
 import { DeviceService } from './device.service';
 
 import { SigfoxDevice } from 'src/entities/sigfox-device.entity';
@@ -11,6 +11,11 @@ export class DeviceController {
     @Get()
     findAll(): Promise<SigfoxDevice[]>{
         return this.deviceService.findAll();
+    }
+
+    @Get('client/:id')
+    findAllbyIdClient(@Param('id', new ParseUUIDPipe()) id: string): Promise<SigfoxDevice[]> {
+        return this.deviceService.getDevicesByClientId(id);
     }
 
     @Get(':id')
