@@ -4,16 +4,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 import { SigfoxDevice } from 'src/entities/sigfox-device.entity';
 import { CreateSigfoxDeviceDto, UpdateSigfoxDeviceDto } from './dto/create-device.dto';
+import { ClientsService } from 'src/clients/clients.service';
 
-import { Client } from 'src/entities/client.entity';
+// import { Client } from 'src/entities/client.entity';
 
 @Injectable()
 export class DeviceService {
     constructor(
         @InjectRepository(SigfoxDevice)
         private sigfoxDeviceRepository: Repository<SigfoxDevice>,
-        @InjectRepository(Client)
-        private clientRepository: Repository<Client>
+        private readonly clientService: ClientsService    
+
+        // @InjectRepository(Client)
+        // private clientRepository: Repository<Client>
     ){}
 
     async create(createSigfoxDeviceDto: CreateSigfoxDeviceDto): Promise<SigfoxDevice> {  
@@ -26,10 +29,12 @@ export class DeviceService {
             throw new ConflictException('device already exists');
         }
 
-        const client = await this.clientRepository.findOne({
-            where: { id: createSigfoxDeviceDto.clientId }
-        });
-    
+        // const client = await this.clientRepository.findOne({
+        //     where: { id: createSigfoxDeviceDto.clientId }
+        // });
+
+        const client = await this.clientService.findOne(createSigfoxDeviceDto.clientId)
+        
         if (!client) {
             throw new NotFoundException('Client not found');
         }
@@ -74,16 +79,17 @@ export class DeviceService {
     
         // Si se proporciona un nuevo clientId, actualizamos la relación
         if (updateSigfoxDeviceDto.clientId) {
-            const client = await this.clientRepository.findOne({
-                where: { id: updateSigfoxDeviceDto.clientId }
-            });
+
+            // const client = await this.clientRepository.findOne({
+            //     where: { id: updateSigfoxDeviceDto.clientId }
+            // });
+            const client = await this.clientService.findOne(updateSigfoxDeviceDto.clientId)
+
             if (!client) {
                 throw new NotFoundException('Client not found');
             }
             existingDevice.client = client;
         }
-    
-        // Guardamos los cambios en la base de datos
         return await this.sigfoxDeviceRepository.save(existingDevice);
     }
 

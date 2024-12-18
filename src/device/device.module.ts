@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DeviceService } from './device.service';
 import { DeviceController } from './device.controller';
@@ -13,7 +13,7 @@ import { Client } from 'src/entities/client.entity';
       SigfoxDevice,
       Client
     ]),
-    ClientsModule,
+    forwardRef(() => ClientsModule),
   ],
   providers: [DeviceService],
   controllers: [DeviceController],

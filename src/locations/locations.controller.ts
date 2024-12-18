@@ -42,4 +42,11 @@ export class LocationsController {
             rangeData.radius
         );
     }
+
+    @Get('report/:id')
+    async getReportData(@Param('id') id: string) {
+        const report = await this.locationsService.generateReport(id);
+        // console.log('****************',report);
+        return report
+    }
 }

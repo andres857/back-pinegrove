@@ -1,6 +1,9 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SigfoxMessagesService } from 'src/sigfox-messages/sigfox-messages.service';
+import { DeviceService } from 'src/device/device.service';
+
 import { Location } from 'src/entities/location.entity';
 import { Client } from "src/entities/client.entity";
 import { CreateLocationDto } from './dto/create-location.dto';
@@ -13,9 +16,10 @@ export class LocationsService {
         private locationRepository: Repository<Location>,
         @InjectRepository(Client)
         private clientRepository: Repository<Client>,
+        private readonly sigfoxMessagesService:SigfoxMessagesService,
+        private readonly deviceService:DeviceService
     ) {}
     
-
     async findAll(): Promise<Location[]> {
         return await this.locationRepository.find({
             relations: ['client']
@@ -84,12 +88,11 @@ export class LocationsService {
         return await this.locationRepository.save(location);
     }
 
-
     toRadians(degrees: number): number {
         return degrees * (Math.PI / 180);
     }
   
-    calculateDistance(coordinate1, coordinate2, radio): boolean {
+    calculateDistance(coordinate1, coordinate2, radio): boolean {        
         const earthRadius = 6371; // Radio de la Tierra en kilómetros
       
         // Convertir las coordenadas de grados a radianes
@@ -105,6 +108,59 @@ export class LocationsService {
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         const distance = earthRadius * c;
         // Verificar si la distancia está dentro del radio especificado
-        return distance <= radio;
+        console.log(`Distance: ${distance} km - Radio: ${radio/1000} km`);
+        return distance <= radio/1000;
+    }
+
+
+    async generateReport(id) {
+        let locations = await this.getLocationsByClientId(id);
+        let devices = await this.deviceService.getDevicesByClientId(id);
+    
+        // Obtener últimas ubicaciones
+        let lastUbications = await Promise.all(
+            devices.map(async (device) => {                
+                let lastMessage = await this.sigfoxMessagesService.getLatestMessage(device.deviceId)
+                return {
+                    id: lastMessage.id,
+                    duplicates: lastMessage.duplicates,
+                    computedLocation: lastMessage.computedLocation,
+                }
+            })
+        );
+    
+        // Procesar ubicaciones
+        let report = locations.map(location => {
+            let matchInfo = {
+                location: location.name,
+                id_location: location.id,
+                devices: []
+            };
+    
+            const radius = Number(location.radiusMeters);                
+            let locationCoordinates = {
+                lat: Number(location.latitude),
+                lng: Number(location.longitude),
+            };
+    
+            // Evaluar cada dispositivo una sola vez
+            lastUbications.forEach(device => {
+                let deviceCoordinates = {
+                    lat: device.computedLocation.lat,
+                    lng: device.computedLocation.lng
+                };
+    
+                let isRange = this.calculateDistance(locationCoordinates, deviceCoordinates, radius);
+                
+                if (isRange) {
+                    matchInfo.devices.push(device.id);
+                }
+            });
+    
+            // Solo retornar si hay dispositivos en el rango
+            return matchInfo.devices.length > 0 ? matchInfo : null;
+        }).filter(match => match !== null); // Eliminar las ubicaciones sin dispositivos
+    
+        return report;
     }
 }

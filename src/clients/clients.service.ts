@@ -4,6 +4,10 @@ import { Repository } from 'typeorm';
 import { Client } from 'src/entities/client.entity';
 import { CreateClientDto } from './dto/create-client.dto';
 
+// services aditionals
+import { DeviceService } from 'src/device/device.service';
+import { SigfoxMessagesService } from 'src/sigfox-messages/sigfox-messages.service';
+
 @Injectable()
 export class ClientsService {
 
@@ -31,8 +35,11 @@ export class ClientsService {
         return await this.clientRepository.find();
     }
     
-    async findOne(id: string): Promise<Client> {
-        return await this.clientRepository.findOneBy({ id });
+    async findOne(id: string): Promise<Client> {        
+        const client = await this.clientRepository.findOne({
+            where: { id: id }
+        });
+        return client;
     }
 
     async findUsersByIdClient(clientId: string) {
@@ -42,4 +49,8 @@ export class ClientsService {
         });
         return client.users;
     }
+
+    // async generateReportData(clientId){
+
+    // }
 }

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module,forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SigfoxMessagesService } from './sigfox-messages.service';
 import { SigfoxMessagesController } from './sigfox-messages.controller';
@@ -13,7 +13,7 @@ import { SigfoxDevice } from 'src/entities/sigfox-device.entity';
       SigfoxMessage,
       SigfoxDevice
     ]),
-    DeviceModule
+    forwardRef(() => DeviceModule),
   ],
   providers: [SigfoxMessagesService],
   controllers: [SigfoxMessagesController],
