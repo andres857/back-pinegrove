@@ -108,36 +108,57 @@ export class LocationsService {
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         const distance = earthRadius * c;
         // Verificar si la distancia está dentro del radio especificado
-        console.log(`Distance: ${distance} km - Radio: ${radio/1000} km`);
+        // console.log(`Distance: ${distance} km - Radio: ${radio/1000} km`);
         return distance <= radio/1000;
     }
 
+    isLessThan24Hours = (dateString) => {
+        // Convertimos el string de fecha a milisegundos
+        const pastDate = new Date(dateString).getTime();
+        // Obtenemos el tiempo actual en milisegundos
+        const currentDate = new Date().getTime();
+        
+        // Calculamos la diferencia en horas
+        // 1000 (ms) * 60 (segundos) * 60 (minutos) = 1 hora en milisegundos
+        const hoursDifference = (currentDate - pastDate) / (1000 * 60 * 60);
+        
+        // Retornamos true si han pasado más de 24 horas
+        return hoursDifference < 24;
+    };
 
     async generateReport(id) {
         let locations = await this.getLocationsByClientId(id);
         let devices = await this.deviceService.getDevicesByClientId(id);
-    
+        
         // Obtener últimas ubicaciones
         let lastUbications = await Promise.all(
-            devices.map(async (device) => {                
-                let lastMessage = await this.sigfoxMessagesService.getLatestMessage(device.deviceId)
+            devices.map(async (device) => {                                
+                const lastMessage = await this.sigfoxMessagesService.getLatestMessage(device.deviceId);
                 return {
-                    id: lastMessage.id,
+                    id: device.deviceId,
                     duplicates: lastMessage.duplicates,
                     computedLocation: lastMessage.computedLocation,
+                    lastseen: lastMessage.device.lastLocationUpdate,
                 }
             })
         );
-    
+        
         // Procesar ubicaciones
         let report = locations.map(location => {
             let matchInfo = {
                 location: location.name,
+                mbs: location.microbs,
+                associated_devices: 0,
                 id_location: location.id,
+                city:location.city,
+                province: location.province,
+                address: location.address,
+                radius: location.radiusMeters,
                 devices: []
             };
     
-            const radius = Number(location.radiusMeters);                
+            const radius = Number(location.radiusMeters);
+
             let locationCoordinates = {
                 lat: Number(location.latitude),
                 lng: Number(location.longitude),
@@ -145,22 +166,28 @@ export class LocationsService {
     
             // Evaluar cada dispositivo una sola vez
             lastUbications.forEach(device => {
+                // console.log('HERE',device);
+                
                 let deviceCoordinates = {
                     lat: device.computedLocation.lat,
                     lng: device.computedLocation.lng
                 };
     
                 let isRange = this.calculateDistance(locationCoordinates, deviceCoordinates, radius);
-                
-                if (isRange) {
+                const isConnected = this.isLessThan24Hours(device.lastseen);
+
+                if (isRange && isConnected) {
+                    matchInfo.associated_devices = matchInfo.associated_devices + 1;
                     matchInfo.devices.push(device.id);
                 }
             });
-    
             // Solo retornar si hay dispositivos en el rango
             return matchInfo.devices.length > 0 ? matchInfo : null;
         }).filter(match => match !== null); // Eliminar las ubicaciones sin dispositivos
-    
+        
         return report;
     }
+
+    
+
 }
