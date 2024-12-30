@@ -1,4 +1,3 @@
-// src/entities/location.entity.ts
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Client } from './client.entity';
 
@@ -7,7 +6,10 @@ export class Location {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @Column()
+    @Column({ nullable: true})
+    index: number;
+    
+    @Column({ nullable: true })
     name: string;
 
     @Column({ nullable: true })

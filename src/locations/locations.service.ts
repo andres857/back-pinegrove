@@ -8,9 +8,12 @@ import { Location } from 'src/entities/location.entity';
 import { Client } from "src/entities/client.entity";
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
+import { log } from 'console';
+
 
 @Injectable()
 export class LocationsService {
+
     constructor(
         @InjectRepository(Location)
         private locationRepository: Repository<Location>,
@@ -112,26 +115,26 @@ export class LocationsService {
         return distance <= radio/1000;
     }
 
-    isLessThan24Hours = (dateString) => {
-        // Convertimos el string de fecha a milisegundos
+    // Verificar el estado del dispositivo
+    statusDevice = (dateString) => {
         const pastDate = new Date(dateString).getTime();
-        // Obtenemos el tiempo actual en milisegundos
         const currentDate = new Date().getTime();
-        
-        // Calculamos la diferencia en horas
-        // 1000 (ms) * 60 (segundos) * 60 (minutos) = 1 hora en milisegundos
         const hoursDifference = (currentDate - pastDate) / (1000 * 60 * 60);
-        
-        // Retornamos true si han pasado más de 24 horas
-        return hoursDifference < 24;
+        return hoursDifference <= 48 ? 'Connected' : 'Disconnected';
     };
 
     async generateReport(id) {
+
+        const devicesConnectedArrayTemp = new Map();
+        let devicesConnectedArray = [];
+        let devicesIntransitArray = [];
+        let devicesNotSeenArray = [];
+
         let locations = await this.getLocationsByClientId(id);
         let devices = await this.deviceService.getDevicesByClientId(id);
-        
-        // Obtener últimas ubicaciones
-        let lastUbications = await Promise.all(
+
+        // Obtener últimas ubicaciones de los dispositivos
+        let lastUbicationsDevices = await Promise.all(
             devices.map(async (device) => {                                
                 const lastMessage = await this.sigfoxMessagesService.getLatestMessage(device.deviceId);
                 return {
@@ -142,52 +145,115 @@ export class LocationsService {
                 }
             })
         );
-        
-        // Procesar ubicaciones
-        let report = locations.map(location => {
-            let matchInfo = {
-                location: location.name,
-                mbs: location.microbs,
-                associated_devices: 0,
-                id_location: location.id,
-                city:location.city,
-                province: location.province,
-                address: location.address,
-                radius: location.radiusMeters,
-                devices: []
-            };
-    
-            const radius = Number(location.radiusMeters);
 
-            let locationCoordinates = {
-                lat: Number(location.latitude),
-                lng: Number(location.longitude),
+        // Obtener los dispositivos que se encuentren conectados
+        let connectedDevices = lastUbicationsDevices.filter(device => {
+            const status = this.statusDevice(device.lastseen);
+            return status === 'Connected';
+        });
+
+        // evaluar si el dispositivo se encuentra en rango de alguna location
+        connectedDevices.forEach(device => {
+            const deviceCoordinates = {
+                lat: Number(device.computedLocation.lat),
+                lng: Number(device.computedLocation.lng)
             };
-    
-            // Evaluar cada dispositivo una sola vez
-            lastUbications.forEach(device => {
-                // console.log('HERE',device);
+
+            let isInAnyRange = false; // Flag to track if device is in range of any location
+
+            locations.forEach(location => {
+                const radio = Number(location.radiusMeters);
                 
-                let deviceCoordinates = {
-                    lat: device.computedLocation.lat,
-                    lng: device.computedLocation.lng
+                const locationCoordinates = {
+                    lat: Number(location.latitude),
+                    lng: Number(location.longitude)
                 };
-    
-                let isRange = this.calculateDistance(locationCoordinates, deviceCoordinates, radius);
-                const isConnected = this.isLessThan24Hours(device.lastseen);
+                const isRange = this.calculateDistance(locationCoordinates, deviceCoordinates, radio);
+                if (isRange) {
+                    isInAnyRange = true;
+                    console.log(location);
 
-                if (isRange && isConnected) {
-                    matchInfo.associated_devices = matchInfo.associated_devices + 1;
-                    matchInfo.devices.push(device.id);
+                    // Si esta ubicación no está en el Map, la inicializamos
+                    if (!devicesConnectedArrayTemp.has(location.id)) {
+                        devicesConnectedArrayTemp.set(location.id, {
+                            index: location.index,
+                            location: location.name,
+                            mbs: location.microbs,
+                            associated_devices: 0,
+                            id_location: location.id,
+                            city: location.city,
+                            province: location.province,
+                            address: location.address,
+                            radius: location.radiusMeters,
+                            devices: []
+                        });
+                    }
+
+                    const locationData = devicesConnectedArrayTemp.get(location.id);
+                    locationData.associated_devices++;
+                    locationData.devices.push(device.id);
+                    return; 
                 }
             });
-            // Solo retornar si hay dispositivos en el rango
-            return matchInfo.devices.length > 0 ? matchInfo : null;
-        }).filter(match => match !== null); // Eliminar las ubicaciones sin dispositivos
+
+            devicesConnectedArray = Array.from(devicesConnectedArrayTemp.values());
+
+            if (!isInAnyRange) {
+                const inTransitLocation = locations.find(location => location.name === 'In transit');
+                if (!devicesIntransitArray.length) {
+                    devicesIntransitArray = [{
+                        index: inTransitLocation.index,
+                        location: inTransitLocation.name,
+                        mbs: inTransitLocation.microbs,
+                        associated_devices: 0,
+                        id_location: inTransitLocation.id,
+                        city: inTransitLocation.city,
+                        province: inTransitLocation.province,
+                        address: inTransitLocation.address,
+                        radius: inTransitLocation.radiusMeters,
+                        devices: []
+                    }];
+                }
+                devicesIntransitArray[0].devices.push(device.id);
+                devicesIntransitArray[0].associated_devices++;
+            }
+        });
+
+        // Obtener los dispositivos que se encuentren desconectados
+        let disconnectedDevices = lastUbicationsDevices.filter(device => {
+            const status = this.statusDevice(device.lastseen);
+            return status === 'Disconnected';
+        });
         
-        return report;
+        const notSeenLocation = locations.find(location => location.name === 'Not Seen');
+        
+        // Creamos el objeto locationProperties una sola vez
+        const locationProperties = {
+            index: notSeenLocation ? notSeenLocation.index : null,
+            location: 'Not Seen',
+            mbs: notSeenLocation ? notSeenLocation.microbs : null,
+            associated_devices: 0,
+            id_location: notSeenLocation ? notSeenLocation.id : null,
+            city: notSeenLocation ? notSeenLocation.city : null,
+            province: notSeenLocation ? notSeenLocation.province : null,
+            address: notSeenLocation ? notSeenLocation.address : null,
+            radius: notSeenLocation ? notSeenLocation.radiusMeters : 0,
+            devices: [] // Este array almacenará todos los IDs
+        };
+
+        disconnectedDevices.forEach(device => {
+            locationProperties.associated_devices++;
+            locationProperties.devices.push(device.id);
+        });
+
+        devicesNotSeenArray = [locationProperties];
+
+
+        const consolidatedArray = [
+            ...devicesConnectedArray,
+            ...devicesIntransitArray,
+            ...devicesNotSeenArray
+        ];
+        return consolidatedArray
     }
-
-    
-
 }
