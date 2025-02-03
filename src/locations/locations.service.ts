@@ -129,6 +129,7 @@ export class LocationsService {
         let devicesConnectedArray = [];
         let devicesIntransitArray = [];
         let devicesNotSeenArray = [];
+        let locationsEmptyArray = [];
 
         let locations = await this.getLocationsByClientId(id);
         let devices = await this.deviceService.getDevicesByClientId(id);
@@ -154,12 +155,12 @@ export class LocationsService {
 
         // evaluar si el dispositivo se encuentra en rango de alguna location
         connectedDevices.forEach(device => {
+            let locationisEmpty = false;
+            let isInAnyRange = false; // Flag to track if device is in range of any location
             const deviceCoordinates = {
                 lat: Number(device.computedLocation.lat),
                 lng: Number(device.computedLocation.lng)
             };
-
-            let isInAnyRange = false; // Flag to track if device is in range of any location
 
             locations.forEach(location => {
                 const radio = Number(location.radiusMeters);
@@ -171,7 +172,7 @@ export class LocationsService {
                 const isRange = this.calculateDistance(locationCoordinates, deviceCoordinates, radio);
                 if (isRange) {
                     isInAnyRange = true;
-                    console.log(location);
+                    locationisEmpty = false;
 
                     // Si esta ubicación no está en el Map, la inicializamos
                     if (!devicesConnectedArrayTemp.has(location.id)) {
@@ -198,6 +199,7 @@ export class LocationsService {
 
             devicesConnectedArray = Array.from(devicesConnectedArrayTemp.values());
 
+            // Determinar si el dispositivo se encuentra en la ubicación "In transit"
             if (!isInAnyRange) {
                 const inTransitLocation = locations.find(location => location.name === 'In transit');
                 if (!devicesIntransitArray.length) {
@@ -248,11 +250,38 @@ export class LocationsService {
 
         devicesNotSeenArray = [locationProperties];
 
+        // Obtener las locations que no tienen dispositivos asociados
+        const locationsWithDevices = new Set(devicesConnectedArrayTemp.keys());
+        const emptyLocations = locations.filter(location => {
+            // Excluimos ubicaciones especiales como "In Transit" o "Not Seen"
+            const isSpecialLocation = location.name === 'In Transit' || location.name === 'Not Seen';
+            return !isSpecialLocation && !locationsWithDevices.has(location.id);
+        });
 
+        function formatLocationStructure(location) {
+            return {
+                index: location.index,
+                location: location.name,        // Nota que usamos 'name' del objeto original
+                mbs: location.microbs,          // Y 'microbs' del original
+                associated_devices: 0,          // Siempre 0 para ubicaciones vacías
+                id_location: location.id,       // 'id' del original
+                city: location.city,
+                province: location.province,
+                address: location.address,
+                radius: location.radiusMeters,  // 'radiusMeters' del original
+                devices: []                     // Siempre array vacío
+            };
+        }
+        
+        // Aplicamos el formato a todas las ubicaciones vacías
+        const formattedEmptyLocations = emptyLocations.map(formatLocationStructure);
+
+        // Consolidar los arrays
         const consolidatedArray = [
             ...devicesConnectedArray,
             ...devicesIntransitArray,
-            ...devicesNotSeenArray
+            ...devicesNotSeenArray,
+            ...formattedEmptyLocations
         ];
         return consolidatedArray
     }
