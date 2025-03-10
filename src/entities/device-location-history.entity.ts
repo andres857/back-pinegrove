@@ -14,6 +14,9 @@ export class DeviceLocationHistory {
     @Column('decimal', { precision: 11, scale: 8 })
     longitude: number;
 
+    @Column({ nullable: true, name: 'location_name' })
+    locationName: string;
+
     @CreateDateColumn()
     timestamp: Date;
 

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LocationsService } from './locations.service';
 import { LocationsController } from './locations.controller';
@@ -15,10 +15,12 @@ import { DeviceModule } from 'src/device/device.module';
       Client,
       Location
     ]),
-    SigfoxMessagesModule,
+    forwardRef(() => SigfoxMessagesModule),
     DeviceModule
   ],
   providers: [LocationsService],
-  controllers: [LocationsController]
+  controllers: [LocationsController],
+  exports: [LocationsService]  // <- Añade esta línea
+
 })
 export class LocationsModule {}

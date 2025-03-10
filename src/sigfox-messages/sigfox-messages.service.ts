@@ -1,12 +1,16 @@
 import { Repository } from 'typeorm';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+
 import { DeviceService } from 'src/device/device.service';
 import { SigfoxDevice } from 'src/entities/sigfox-device.entity';
+import { LocationsService } from 'src/locations/locations.service';
 
 import { SigfoxMessage } from 'src/entities/sigfox-message.entity';
 import { CreateSigfoxMessageDto } from './dto/create-message.dto';
 import { CreateSigfoxDeviceDto } from 'src/device/dto/create-device.dto';
+
+import { DeviceLocationHistory } from 'src/entities/device-location-history.entity';
 
 @Injectable()
 export class SigfoxMessagesService {
@@ -15,7 +19,13 @@ export class SigfoxMessagesService {
         private sigfoxMessageRepository: Repository<SigfoxMessage>,
         @InjectRepository(SigfoxDevice)
         private sigfoxDeviceRepository: Repository<SigfoxDevice>,
-        private readonly deviceService:DeviceService 
+        private readonly deviceService:DeviceService,
+        // @InjectRepository(LocationsService)
+        @Inject(forwardRef(() => LocationsService))
+        private locationsServiceRepository:LocationsService,
+        
+        @InjectRepository(DeviceLocationHistory)
+        private deviceLocationHistoryRepository: Repository<DeviceLocationHistory>
     ){}
 
     async findAll(): Promise<SigfoxMessage[]> {
@@ -24,6 +34,29 @@ export class SigfoxMessagesService {
             order: {
                 createdAt: 'DESC', // Ordenamos por fecha de creación, más recientes primero
             },
+        });
+    }
+
+    async findAllHistoryLocation(): Promise<DeviceLocationHistory[]> {
+        return await this.deviceLocationHistoryRepository.find({
+            relations: ['device', 'location'], // Incluimos también la relación con 'location'
+            order: {
+                timestamp: 'DESC', 
+            },
+            take: 100,
+        });
+    }
+
+    async findHistoryLocationByDevice(deviceId: string) {
+        return await this.deviceLocationHistoryRepository.find({
+            where: {
+                device: { deviceId }
+            },
+            relations: ['device', 'location'],
+            order: {
+                timestamp: 'DESC'
+            },
+            take: 100 // Limitamos para evitar sobrecarga
         });
     }
 
@@ -53,53 +86,90 @@ export class SigfoxMessagesService {
 
     async create(createMessageDto: CreateSigfoxMessageDto): Promise<SigfoxMessage> {
         // Primero verificamos que el dispositivo al que se asociará el mensaje existe
-        let device = await this.sigfoxDeviceRepository.findOne({
-            where: { SigfoxId: createMessageDto.device }
-        });
-
-        // Si no encontramos el dispositivo, lo creamos
-        if (!device) {
-            console.log('CREANDO NUEVO DEVICE');
-            
-            const createDeviceDto: CreateSigfoxDeviceDto = {
-                // deviceId: createMessageDto.device,
-                SigfoxId: createMessageDto.device,
-                deviceType: createMessageDto.deviceType,
-                deviceTypeId: createMessageDto.deviceTypeId,
-                clientId: createMessageDto.clientId,
-
-                // Actualizamos la ubicación si está disponible
-                lastLatitude: createMessageDto.computedLocation?.lat,
-                lastLongitude: createMessageDto.computedLocation?.lng,
-                lastLocationUpdate: new Date(),
-            };
-            console.log("*****",createDeviceDto );
-            device = await this.deviceService.create(createDeviceDto);
-            
-        } else {
-            if (createMessageDto.computedLocation) {
-                await this.deviceService.update(createMessageDto.device, {
-                    lastLatitude: createMessageDto.computedLocation.lat,
-                    lastLongitude: createMessageDto.computedLocation.lng,
+        try {
+            let device = await this.sigfoxDeviceRepository.findOne({
+                where: { SigfoxId: createMessageDto.device }
+            });
+    
+            // Si no encontramos el dispositivo, lo creamos
+            if (!device) {
+                console.log('CREANDO NUEVO DEVICE');
+                
+                const createDeviceDto: CreateSigfoxDeviceDto = {
+                    // deviceId: createMessageDto.device,
+                    SigfoxId: createMessageDto.device,
+                    deviceType: createMessageDto.deviceType,
+                    deviceTypeId: createMessageDto.deviceTypeId,
+                    clientId: createMessageDto.clientId,
+    
+                    // Actualizamos la ubicación si está disponible
+                    lastLatitude: createMessageDto.computedLocation?.lat,
+                    lastLongitude: createMessageDto.computedLocation?.lng,
                     lastLocationUpdate: new Date(),
-                });
+                };
+                console.log("*****",createDeviceDto );
+                device = await this.deviceService.create(createDeviceDto);
+                
+            } else {
+                if (createMessageDto.computedLocation) {
+                    await this.deviceService.update(createMessageDto.device, {
+                        lastLatitude: createMessageDto.computedLocation.lat,
+                        lastLongitude: createMessageDto.computedLocation.lng,
+                        lastLocationUpdate: new Date(),
+                    });
+                }
             }
+    
+            // Creamos una nueva instancia del mensaje con los datos recibidos
+            const sigfoxMessage = this.sigfoxMessageRepository.create({
+                messageType: createMessageDto.messageType,
+                data: createMessageDto.data,
+                lqi: createMessageDto.lqi,
+                linkQuality: createMessageDto.linkQuality,
+                operatorName: createMessageDto.operatorName,
+                countryCode: createMessageDto.countryCode,
+                duplicates: createMessageDto.duplicates,
+                computedLocation: createMessageDto.computedLocation,
+                device: device // Asignamos el dispositivo encontrado
+            });
+            
+            const newMessage = await this.sigfoxMessageRepository.save(sigfoxMessage);
+            await this.createLocationRecord(newMessage);
+            return newMessage;
+        } catch (error) {
+            console.error('Error al crear el mensaje del callback de sigfox: ', error);
         }
 
-        // Creamos una nueva instancia del mensaje con los datos recibidos
-        const sigfoxMessage = this.sigfoxMessageRepository.create({
-            messageType: createMessageDto.messageType,
-            data: createMessageDto.data,
-            lqi: createMessageDto.lqi,
-            linkQuality: createMessageDto.linkQuality,
-            operatorName: createMessageDto.operatorName,
-            countryCode: createMessageDto.countryCode,
-            duplicates: createMessageDto.duplicates,
-            computedLocation: createMessageDto.computedLocation,
-            device: device // Asignamos el dispositivo encontrado
-        });
-
-        // Guardamos el mensaje en la base de datos
-        return await this.sigfoxMessageRepository.save(sigfoxMessage);
     }
+
+    async createLocationRecord(newMessage){
+        const {lat, lng} = newMessage.computedLocation;
+        const coordinates = {
+            lat:lat,
+            lng:lng
+        }
+        // hardcore id client FIXX THIS, later 
+        const clientID = '51742590-5703-4a34-a2ba-f8a7bc863981';
+
+        try {
+            const location = await this.locationsServiceRepository.getLocation(clientID, coordinates)
+
+            // Crear un nuevo registro de historial de ubicación
+            const locationHistory = this.deviceLocationHistoryRepository.create({
+                latitude: lat,
+                longitude: lng,
+                locationName: location.name,
+                device: newMessage.device, 
+                location: location 
+            });
+    
+            const savedHistory = await this.deviceLocationHistoryRepository.save(locationHistory);
+            // console.log('Historial de ubicación guardado:', savedHistory.id);
+            return savedHistory;  
+        } catch (error) {
+            console.error('Error al crear el registro de historial de ubicación:', error);
+            // throw error;
+        }
+    }
+    
 }

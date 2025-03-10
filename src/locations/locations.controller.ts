@@ -48,4 +48,10 @@ export class LocationsController {
         const report = await this.locationsService.generateReport(id);
         return report
     }
+
+    @Get('history/device/:id')
+    async getLocation(@Param('id') id: string){
+        const history = await this.locationsService.getHistoryLocationByDevice(id)
+        return history;
+    }
 }

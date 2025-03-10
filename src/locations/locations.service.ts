@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SigfoxMessagesService } from 'src/sigfox-messages/sigfox-messages.service';
@@ -8,8 +8,6 @@ import { Location } from 'src/entities/location.entity';
 import { Client } from "src/entities/client.entity";
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
-import { log } from 'console';
-
 
 @Injectable()
 export class LocationsService {
@@ -19,6 +17,9 @@ export class LocationsService {
         private locationRepository: Repository<Location>,
         @InjectRepository(Client)
         private clientRepository: Repository<Client>,
+
+        @Inject(forwardRef(() => SigfoxMessagesService))
+        // private sigfoxMessagesService: SigfoxMessagesService,
         private readonly sigfoxMessagesService:SigfoxMessagesService,
         private readonly deviceService:DeviceService
     ) {}
@@ -285,4 +286,34 @@ export class LocationsService {
         ];
         return consolidatedArray
     }
+
+    async getLocation(clientId, coordinatesDevice){
+        
+        const idLocationInstransit = 'ebffb121-c3b1-4c76-8f02-c58da83bc293'        
+        // obtener las coordenadads de todas las locations del client
+        const locations = await this.getLocationsByClientId(clientId);
+        const instransitLocation = locations.find(location => location.id === idLocationInstransit);
+
+        // Encontrar la ubicación donde está el dispositivo
+        const matchedLocation = locations.find(location => {
+            const locationCoords = {
+                lat: location.latitude,
+                lng: location.longitude
+            };
+            
+            return this.calculateDistance(
+                coordinatesDevice,
+                locationCoords,
+                location.radiusMeters
+            );
+        });
+        return matchedLocation || instransitLocation;
+    }
+
+    async getHistoryLocationByDevice(deviceID){
+        const history = await this.sigfoxMessagesService.findHistoryLocationByDevice(deviceID);
+        console.log(history);
+        return history;
+    }
+
 }

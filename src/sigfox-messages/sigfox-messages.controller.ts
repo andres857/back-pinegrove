@@ -13,6 +13,11 @@ export class SigfoxMessagesController {
         return await this.sigfoxMessagesService.findAll();
     }
 
+    @Get('/test')
+    async findAlltest(){
+        return await this.sigfoxMessagesService.findAllHistoryLocation();
+    }
+
     @Get('/device/:id')
     async findOne(@Param('id') id: string): Promise<SigfoxMessage[]> {
         return await this.sigfoxMessagesService.getMessagesByDeviceId(id);
