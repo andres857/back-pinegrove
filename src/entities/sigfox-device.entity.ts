@@ -20,10 +20,13 @@ export class SigfoxDevice {
     SigfoxId: string;
 
     @Column()
-    deviceType: string;
+    deviceType: string; // devicetype sigfox
 
     @Column()
     deviceTypeId: string;
+
+    @Column({ nullable: true })
+    aliasDeviceType?: string; //Device type for web
 
     @Column('decimal', { precision: 10, scale: 8, nullable: true })
     lastLatitude: number;

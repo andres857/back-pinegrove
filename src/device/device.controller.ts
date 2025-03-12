@@ -27,4 +27,9 @@ export class DeviceController {
     create(@Body() createSigfoxDeviceDto: CreateSigfoxDeviceDto): Promise<SigfoxDevice> {
         return this.deviceService.create(createSigfoxDeviceDto);
     }
+
+    @Put(':id')
+    update(@Param('id') id: string, @Body() updateSigfoxDeviceDto: UpdateSigfoxDeviceDto): Promise<SigfoxDevice> {
+        return this.deviceService.update(id, updateSigfoxDeviceDto);
+    }
 }

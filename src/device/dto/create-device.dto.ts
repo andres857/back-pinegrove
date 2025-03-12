@@ -14,6 +14,10 @@ export class CreateSigfoxDeviceDto {
     friendlyName?: string;
 
     @IsString()
+    @IsOptional()
+    aliasDeviceType?: string;
+
+    @IsString()
     deviceType: string;
 
     @IsString()
