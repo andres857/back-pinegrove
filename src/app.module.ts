@@ -28,7 +28,7 @@ import { SigfoxMessagesModule } from './sigfox-messages/sigfox-messages.module';
     }),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: '159.69.9.161',
+      host: process.env.HOST,
       port: 5428,
       password: process.env.POSTGRES_PASSWORD_DEVEL,
       username: process.env.POSTGRES_USER_DEVEL,

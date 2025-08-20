@@ -9,6 +9,10 @@ services:
     volumes:
       - ./:/usr/src/app
       # - ./node_modules:/usr/src/app/node_modules
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_DEVEL}
+      - POSTGRES_USER=${POSTGRES_USER_DEVEL}
+      - POSTGRES_DB=${POSTGRES_DB_DEVEL}
     ports:
       - 3005:3000
     logging:
