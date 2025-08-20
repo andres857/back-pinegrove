@@ -29,7 +29,7 @@ import { SigfoxMessagesModule } from './sigfox-messages/sigfox-messages.module';
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.HOST,
-      port: 5428,
+      port: parseInt(process.env.POSTGRES_PORT, 10) || 5428,
       password: process.env.POSTGRES_PASSWORD_DEVEL,
       username: process.env.POSTGRES_USER_DEVEL,
       database: process.env.POSTGRES_DB_DEVEL,

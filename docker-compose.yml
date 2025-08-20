@@ -14,7 +14,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER_DEVEL}
       - POSTGRES_DB=${POSTGRES_DB_DEVEL}
     ports:
-      - 3005:3000
+      - ${APP_PORT}:3000
     logging:
       driver: "json-file"
       options:
@@ -24,7 +24,7 @@ services:
     image: postgres:14-alpine
     restart: unless-stopped
     ports:
-      - 5428:5432
+      - ${POSTGRES_PORT}:5432
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
