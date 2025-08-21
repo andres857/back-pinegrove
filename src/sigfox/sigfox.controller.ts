@@ -35,7 +35,7 @@ interface SigfoxResponse {
 export class SigfoxController {
     constructor (private readonly sigfoxMessagesService:SigfoxMessagesService ){}
 
-    @Post('manitou/callback')
+    @Post('/callback')
     async create(@Body() createSigfoxMessageDto: CreateSigfoxMessageDto, @Query() queryParams: SigfoxQueryParams) {
         const device =  await this.sigfoxMessagesService.create(createSigfoxMessageDto);
         // Preparar respuesta para Sigfox
