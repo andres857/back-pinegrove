@@ -26,7 +26,7 @@ services:
     ports:
       - ${POSTGRES_PORT}:5432
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - technogym_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_DEVEL}
       - POSTGRES_USER=${POSTGRES_USER_DEVEL}
@@ -37,7 +37,7 @@ services:
         max-size: "5m"
 
 volumes:
-  postgres_data:
+  technogym_data:
 
 networks:
   nettrotter:

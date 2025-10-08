@@ -96,7 +96,6 @@ export class SigfoxMessagesService {
                 console.log('CREANDO NUEVO DEVICE');
                 
                 const createDeviceDto: CreateSigfoxDeviceDto = {
-                    // deviceId: createMessageDto.device,
                     SigfoxId: createMessageDto.device,
                     deviceType: createMessageDto.deviceType,
                     deviceTypeId: createMessageDto.deviceTypeId,
@@ -144,22 +143,26 @@ export class SigfoxMessagesService {
 
     async createLocationRecord(newMessage){
         const {lat, lng} = newMessage.computedLocation;
+        console.log('ANTENASSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS',newMessage.duplicates);
+        
         const coordinates = {
             lat:lat,
             lng:lng
         }
+        
         // hardcore id client FIXX THIS, later 
-        const clientID = '51742590-5703-4a34-a2ba-f8a7bc863981';
+        const clientID = 'e8a53dfb-bd89-4419-9602-414bea118aae';
 
         try {
-            const location = await this.locationsServiceRepository.getLocation(clientID, coordinates)
-
+            const location = await this.locationsServiceRepository.getLocation(clientID, coordinates,newMessage.duplicates )
+            console.log('aqqqqqqqqqqqqqqqqqqq', location);
+            
             // Crear un nuevo registro de historial de ubicación
             const locationHistory = this.deviceLocationHistoryRepository.create({
                 latitude: lat,
                 longitude: lng,
                 locationName: location.name,
-                device: newMessage.device, 
+                device: newMessage.device,
                 location: location 
             });
     

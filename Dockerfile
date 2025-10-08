@@ -47,7 +47,7 @@ COPY --from=builder /usr/src/app/yarn.lock ./
 COPY --from=builder /usr/src/app/.env ./.env
 
 RUN chown -R node:node . && \
-    chmod -R 755 . && 
+    chmod -R 755 . 
 
 RUN yarn install --production --frozen-lockfile
 ENV NODE_ENV=production

@@ -40,7 +40,6 @@ export class LocationsService {
         if (!locations.length) {
           throw new NotFoundException(`No locations found for client ${clientId}`);
         }
-    
         return locations;
     }
 
@@ -64,6 +63,55 @@ export class LocationsService {
 
         const location = this.locationRepository.create(createLocationDto);            
         return await this.locationRepository.save(location);
+    }
+
+    async createBulk(createLocationDtos: CreateLocationDto[]): Promise<{
+        created: Location[];
+        errors: { index: number; name: string; error: string }[];
+    }> {
+        const created: Location[] = [];
+        const errors: { index: number; name: string; error: string }[] = [];
+
+        // Verificar que el cliente existe una sola vez
+        if (createLocationDtos.length > 0) {
+            const client = await this.clientRepository.findOne({
+                where: { id: createLocationDtos[0].clientId }
+            });
+            if (!client) {
+                throw new NotFoundException(`Client with ID ${createLocationDtos[0].clientId} not found`);
+            }
+        }
+
+        for (let i = 0; i < createLocationDtos.length; i++) {
+            const dto = createLocationDtos[i];
+            try {
+                // Verificar si ya existe
+                const existingLocation = await this.locationRepository.findOne({
+                    where: { name: dto.name }
+                });
+
+                if (existingLocation) {
+                    errors.push({
+                        index: i,
+                        name: dto.name,
+                        error: 'Location already exists'
+                    });
+                    continue;
+                }
+
+                const location = this.locationRepository.create(dto);
+                const savedLocation = await this.locationRepository.save(location);
+                created.push(savedLocation);
+            } catch (error) {
+                errors.push({
+                    index: i,
+                    name: dto.name,
+                    error: error.message || 'Unknown error'
+                });
+            }
+        }
+
+        return { created, errors };
     }
 
     async findOne(id: string): Promise<Location> {
@@ -287,12 +335,42 @@ export class LocationsService {
         return consolidatedArray
     }
 
-    async getLocation(clientId, coordinatesDevice){
-        
-        const idLocationInstransit = 'ebffb121-c3b1-4c76-8f02-c58da83bc293'        
-        // obtener las coordenadads de todas las locations del client
+    async getLocation(clientId, coordinatesDevice, duplicates){
+        const idLocationInstransit = '1432658f-06ad-45fb-8ce9-6745f1bb35f1'        
         const locations = await this.getLocationsByClientId(clientId);
+        
+        // 1. Filtrar locations que tienen microbs definida
+        const locationsWithMicrobs = locations.filter(
+            location => location.microbs && location.microbs.trim() !== ''
+        );
+        
+        console.log('Locations con microbs:', locationsWithMicrobs.length);
+        
+        // 2. Buscar coincidencia entre bsId de duplicates y microbs de locations
+        for (const duplicate of duplicates) {
+            const bsId = duplicate.bsId.toLowerCase();
+            
+            const matchedLocation = locationsWithMicrobs.find(
+                location => location.microbs.toLowerCase() === bsId
+            );
+            
+            if (matchedLocation) {
+                console.log(`✅ Match encontrado! bsId: ${duplicate.bsId} = microbs: ${matchedLocation.microbs}`);
+                console.log(`Location: ${matchedLocation.name}`);
+                return matchedLocation;
+            }
+        }
+
+
+        
+        // obtener las coordenadads de todas las locations del client
         const instransitLocation = locations.find(location => location.id === idLocationInstransit);
+        
+        // console.log('locationsssss', locations);
+        
+        console.log('intransitLocationnnnnnnnnnnnnnn', instransitLocation);
+        
+
 
         // Encontrar la ubicación donde está el dispositivo
         const matchedLocation = locations.find(location => {
@@ -307,6 +385,8 @@ export class LocationsService {
                 location.radiusMeters
             );
         });
+
+
         return matchedLocation || instransitLocation;
     }
 

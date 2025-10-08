@@ -15,28 +15,15 @@ services:
       driver: "json-file"
       options:
         max-size: "5m"
-  
-  nginx:
-    image: nginx:alpine
-    restart: unless-stopped
-    ports:
-      - 3005:80
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - app-backend
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
 
   postgres:
     image: postgres:14-alpine
     restart: unless-stopped
     ports:
-      - 5428:5432
+      - ${POSTGRES_PORT}:5432
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - technogym_data:/var/lib/postgresql/data
+      # - postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_DEVEL}
       - POSTGRES_USER=${POSTGRES_USER_DEVEL}
@@ -45,6 +32,24 @@ services:
       driver: "json-file"
       options:
         max-size: "5m"
+  
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - app-backend
+    ports:
+      - ${APP_PORT}:80
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+
+volumes:
+  technogym_data:
 
 networks:
   nettrotter:

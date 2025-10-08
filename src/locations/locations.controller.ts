@@ -28,6 +28,28 @@ export class LocationsController {
     create(@Body() createLocationDto: CreateLocationDto): Promise<Location> {
         return this.locationsService.create(createLocationDto);
     }
+    
+    @Post('bulk')
+    async createBulk(@Body() createLocationDtos: CreateLocationDto[]): Promise<{
+        created: Location[];
+        errors: { index: number; name: string; error: string }[];
+        summary: {
+            total: number;
+            successful: number;
+            failed: number;
+        };
+    }> {
+        const result = await this.locationsService.createBulk(createLocationDtos);
+        
+        return {
+            ...result,
+            summary: {
+                total: createLocationDtos.length,
+                successful: result.created.length,
+                failed: result.errors.length
+            }
+        };
+    }
 
     @Put(':id')
     update(@Param('id') id: string, @Body() updateLocationDto: UpdateLocationDto): Promise<Location> {
