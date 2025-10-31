@@ -6,17 +6,23 @@ import { SigfoxDevice } from 'src/entities/sigfox-device.entity';
 import { CreateSigfoxDeviceDto, UpdateSigfoxDeviceDto } from './dto/create-device.dto';
 import { ClientsService } from 'src/clients/clients.service';
 
-// import { Client } from 'src/entities/client.entity';
+import { SigfoxMessage } from 'src/entities/sigfox-message.entity';
+import { Location } from 'src/entities/location.entity';
+import { DeviceLocationHistory } from 'src/entities/device-location-history.entity';
 
 @Injectable()
 export class DeviceService {
     constructor(
         @InjectRepository(SigfoxDevice)
         private sigfoxDeviceRepository: Repository<SigfoxDevice>,
-        private readonly clientService: ClientsService    
+        @InjectRepository(SigfoxMessage)
+        private sigfoxMessageRepository: Repository<SigfoxMessage>,
+        @InjectRepository(Location)
+        private locationRepository: Repository<Location>,
+        @InjectRepository(DeviceLocationHistory)
+        private deviceLocationHistoryRepository: Repository<DeviceLocationHistory>,
+        private readonly clientService: ClientsService
 
-        // @InjectRepository(Client)
-        // private clientRepository: Repository<Client>
     ){}
 
     async create(createSigfoxDeviceDto: CreateSigfoxDeviceDto): Promise<SigfoxDevice> {  
@@ -94,12 +100,31 @@ export class DeviceService {
     }
 
     async findAll(): Promise<SigfoxDevice[]> {
-        return await this.sigfoxDeviceRepository.find({
-            relations: ['client', 'messages', 'locationHistory'],
+        // Solo carga los devices con el cliente
+        const devices = await this.sigfoxDeviceRepository.find({
+            relations: ['client'],
             order: {
                 friendlyName: 'ASC'
-            }
+            },
+            take: 500
         });
+
+        // Carga los últimos 100 mensajes para cada device (si realmente los necesitas)
+        for (const device of devices) {
+            device.messages = await this.sigfoxMessageRepository.find({
+                where: { device: { deviceId: device.deviceId } },
+                order: { createdAt: 'DESC' },
+                take: 5
+            });
+            
+            device.locationHistory = await this.deviceLocationHistoryRepository.find({
+                where: { device: { deviceId: device.deviceId } },
+                order: { timestamp: 'DESC' },
+                take: 5
+            });
+        }
+
+        return devices;
     }
 
     async getDevicesByClientId(clientId): Promise<SigfoxDevice[]> {
