@@ -183,7 +183,7 @@ export class LocationsService {
         let locations = await this.getLocationsByClientId(id);
         let devices = await this.deviceService.getDevicesByClientId(id);
 
-        // Obtener últimas ubicaciones de los dispositivos
+        // Obtener la última ubicación del dispositivo
         let lastUbicationsDevices = await Promise.all(
             devices.map(async (device) => {                                
                 const lastMessage = await this.sigfoxMessagesService.getLatestMessage(device.deviceId);
@@ -360,17 +360,11 @@ export class LocationsService {
                 return matchedLocation;
             }
         }
-
-
         
         // obtener las coordenadads de todas las locations del client
-        const instransitLocation = locations.find(location => location.id === idLocationInstransit);
-        
+        const instransitLocation = locations.find(location => location.id === idLocationInstransit);        
         // console.log('locationsssss', locations);
-        
         console.log('intransitLocationnnnnnnnnnnnnnn', instransitLocation);
-        
-
 
         // Encontrar la ubicación donde está el dispositivo
         const matchedLocation = locations.find(location => {
@@ -385,8 +379,6 @@ export class LocationsService {
                 location.radiusMeters
             );
         });
-
-
         return matchedLocation || instransitLocation;
     }
 

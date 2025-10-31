@@ -84,36 +84,50 @@ export class SigfoxMessagesService {
         return message;
     }
 
-    async create(createMessageDto: CreateSigfoxMessageDto): Promise<SigfoxMessage> {
-        // Primero verificamos que el dispositivo al que se asociará el mensaje existe
+    async create(createMessageDto: CreateSigfoxMessageDto): Promise<SigfoxMessage> {        
+        const idLocationInstransit = '1432658f-06ad-45fb-8ce9-6745f1bb35f1'
+        const clientId = createMessageDto.clientId;
+        console.log('clientId', clientId);
+
+        const {lat, lng} = createMessageDto.computedLocation;
+        
+        const coordinates = {
+            lat:lat,
+            lng:lng
+        }
+        
+        const locationFound  = await this.locationsServiceRepository.getLocation(clientId, coordinates, createMessageDto.duplicates )
+        console.log('[SIGFOX-MESSAGES-SERVICE] - LOCATION', locationFound);
+
+        if (idLocationInstransit === locationFound.id){
+            locationFound.latitude = lat;
+            locationFound.longitude = lng;
+        }
+        
         try {
             let device = await this.sigfoxDeviceRepository.findOne({
                 where: { SigfoxId: createMessageDto.device }
             });
     
-            // Si no encontramos el dispositivo, lo creamos
+            // Si el dispositivo no existe, se crea
             if (!device) {
-                console.log('CREANDO NUEVO DEVICE');
-                
                 const createDeviceDto: CreateSigfoxDeviceDto = {
                     SigfoxId: createMessageDto.device,
+                    clientId: createMessageDto.clientId,
                     deviceType: createMessageDto.deviceType,
                     deviceTypeId: createMessageDto.deviceTypeId,
-                    clientId: createMessageDto.clientId,
-    
-                    // Actualizamos la ubicación si está disponible
-                    lastLatitude: createMessageDto.computedLocation?.lat,
-                    lastLongitude: createMessageDto.computedLocation?.lng,
+                    lastLatitude: locationFound.latitude,
+                    lastLongitude: locationFound.longitude,
                     lastLocationUpdate: new Date(),
                 };
-                console.log("*****",createDeviceDto );
                 device = await this.deviceService.create(createDeviceDto);
+                console.log('[SIGFOX-MESSAGES-SERVICE] - DEVICE CREADO', device );
                 
             } else {
                 if (createMessageDto.computedLocation) {
                     await this.deviceService.update(createMessageDto.device, {
-                        lastLatitude: createMessageDto.computedLocation.lat,
-                        lastLongitude: createMessageDto.computedLocation.lng,
+                        lastLatitude: locationFound.latitude,
+                        lastLongitude: locationFound.longitude,
                         lastLocationUpdate: new Date(),
                     });
                 }
@@ -133,46 +147,33 @@ export class SigfoxMessagesService {
             });
             
             const newMessage = await this.sigfoxMessageRepository.save(sigfoxMessage);
-            await this.createLocationRecord(newMessage);
+            console.log('[SIGFOX-MESSAGES-SERVICE] - foundddddddddddd', locationFound);
+            
+            await this.createLocationRecord(locationFound,device);
             return newMessage;
         } catch (error) {
             console.error('Error al crear el mensaje del callback de sigfox: ', error);
         }
-
     }
 
-    async createLocationRecord(newMessage){
-        const {lat, lng} = newMessage.computedLocation;
-        console.log('ANTENASSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS',newMessage.duplicates);
-        
-        const coordinates = {
-            lat:lat,
-            lng:lng
-        }
-        
-        // hardcore id client FIXX THIS, later 
-        const clientID = 'e8a53dfb-bd89-4419-9602-414bea118aae';
-
-        try {
-            const location = await this.locationsServiceRepository.getLocation(clientID, coordinates,newMessage.duplicates )
-            console.log('aqqqqqqqqqqqqqqqqqqq', location);
-            
+    async createLocationRecord(location, device){
+        try {            
             // Crear un nuevo registro de historial de ubicación
             const locationHistory = this.deviceLocationHistoryRepository.create({
-                latitude: lat,
-                longitude: lng,
+                latitude: location.latitude,
+                longitude: location.longitude,
                 locationName: location.name,
-                device: newMessage.device,
-                location: location 
+                device: device,
+                location: location,
+                duplicates: location.microbs,
             });
-    
+            console.log('locationHistoryyyyyyyyyyyyyyyyyyyyyyyyyyy', locationHistory);
+            
             const savedHistory = await this.deviceLocationHistoryRepository.save(locationHistory);
-            // console.log('Historial de ubicación guardado:', savedHistory.id);
+            console.log('Historial de ubicación guardado:', savedHistory);
             return savedHistory;  
         } catch (error) {
             console.error('Error al crear el registro de historial de ubicación:', error);
-            // throw error;
         }
-    }
-    
+    }    
 }

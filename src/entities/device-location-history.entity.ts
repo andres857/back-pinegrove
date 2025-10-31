@@ -8,6 +8,9 @@ export class DeviceLocationHistory {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Column({type: 'varchar', nullable: true})
+    duplicates: string | null;
+
     @Column('decimal', { precision: 10, scale: 8 })
     latitude: number;
 
