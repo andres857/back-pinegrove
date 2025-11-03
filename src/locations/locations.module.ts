@@ -9,18 +9,19 @@ import { Client } from 'src/entities/client.entity';
 import { SigfoxMessagesModule } from 'src/sigfox-messages/sigfox-messages.module';
 import { DeviceModule } from 'src/device/device.module';
 
+
 @Module({
   imports:[
     TypeOrmModule.forFeature([
       Client,
-      Location
+      Location,
     ]),
     forwardRef(() => SigfoxMessagesModule),
     DeviceModule
   ],
   providers: [LocationsService],
   controllers: [LocationsController],
-  exports: [LocationsService]  // <- Añade esta línea
+  exports: [LocationsService]
 
 })
 export class LocationsModule {}

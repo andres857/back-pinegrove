@@ -32,4 +32,9 @@ export class DeviceController {
     update(@Param('id') id: string, @Body() updateSigfoxDeviceDto: UpdateSigfoxDeviceDto): Promise<SigfoxDevice> {
         return this.deviceService.update(id, updateSigfoxDeviceDto);
     }
+
+    @Get(':id/lastlocation')
+    getLastLocation(@Param('id') id: string): Promise<any> {
+        return this.deviceService.getLastLocation(id);
+    }
 }

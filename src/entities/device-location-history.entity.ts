@@ -1,4 +1,3 @@
-// src/entities/device-location-history.entity.ts
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn } from 'typeorm';
 import { SigfoxDevice } from './sigfox-device.entity';
 import { Location } from './location.entity';

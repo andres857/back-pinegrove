@@ -106,7 +106,7 @@ export class DeviceService {
             order: {
                 friendlyName: 'ASC'
             },
-            take: 500
+            take: 20
         });
 
         // Carga los últimos 100 mensajes para cada device (si realmente los necesitas)
@@ -152,5 +152,15 @@ export class DeviceService {
         }
 
         return device;
+    }
+
+    async getLastLocation(deviceId: string): Promise<DeviceLocationHistory | null> {
+        const locationHistory = await this.deviceLocationHistoryRepository.findOne({
+          where: { device: { deviceId } },
+          order: { timestamp: 'DESC' },
+          relations: ['device']
+        });
+    
+        return locationHistory;
     }
 }

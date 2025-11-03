@@ -335,6 +335,81 @@ export class LocationsService {
         return consolidatedArray
     }
 
+
+async report(idclient) {
+    const locations = await this.getLocationsByClientId(idclient);
+    const devices = await this.deviceService.getDevicesByClientId(idclient);
+
+    // Obtener última ubicación de todos los devices
+    const lastUbicationsDevices = await Promise.all(
+        devices.map(async (device) => {
+            const lastLocation = await this.deviceService.getLastLocation(device.deviceId);
+            return {
+                id: device.deviceId,
+                location: lastLocation?.locationName ?? 'Not Seen',
+            };
+        })
+    );
+
+    // Crear Map de ubicaciones para búsqueda rápida
+    const locationMap = new Map(
+        locations.map(loc => [loc.name, loc])
+    );
+
+    // Agrupar dispositivos por ubicación
+    const groupedDevices = lastUbicationsDevices.reduce((acc, device) => {
+        if (!acc.has(device.location)) {
+            acc.set(device.location, []);
+        }
+        acc.get(device.location).push(device.id);
+        return acc;
+    }, new Map());
+
+    // Construir resultado
+    const result = [];
+
+    // Agregar ubicaciones con dispositivos
+    groupedDevices.forEach((deviceIds, locationName) => {
+        const locationInfo = locationMap.get(locationName);
+        
+        result.push({
+            index: locationInfo?.index ?? null,
+            location: locationName,
+            mbs: locationInfo?.microbs ?? "",
+            associated_devices: deviceIds.length,
+            id_location: locationInfo?.id ?? null,
+            city: locationInfo?.city ?? null,
+            province: locationInfo?.province ?? null,
+            address: locationInfo?.address ?? null,
+            radius: locationInfo?.radiusMeters ?? 0,
+            devices: deviceIds
+        });
+    });
+
+    // Agregar ubicaciones vacías
+    locations.forEach(location => {
+        const isSpecialLocation = ['In transit', 'Not Seen'].includes(location.name);
+        const hasDevices = groupedDevices.has(location.name);
+        
+        if (!isSpecialLocation && !hasDevices) {
+            result.push({
+                index: location.index,
+                location: location.name,
+                mbs: location.microbs || "",
+                associated_devices: 0,
+                id_location: location.id,
+                city: location.city,
+                province: location.province,
+                address: location.address,
+                radius: location.radiusMeters,
+                devices: []
+            });
+        }
+    });
+
+    return result;
+}
+
     async getLocation(clientId, coordinatesDevice, duplicates){
         const idLocationInstransit = '1432658f-06ad-45fb-8ce9-6745f1bb35f1'        
         const locations = await this.getLocationsByClientId(clientId);

@@ -65,7 +65,7 @@ export class LocationsController {
         );
     }
 
-    @Get('report/:id')
+    @Get('reportold/:id')
     async getReportData(@Param('id') id: string) {
         const report = await this.locationsService.generateReport(id);
         return report
@@ -75,5 +75,11 @@ export class LocationsController {
     async getLocation(@Param('id') id: string){
         const history = await this.locationsService.getHistoryLocationByDevice(id)
         return history;
+    }
+
+    @Get('report/:id')
+    async getReport(@Param('id') id: string){
+        const report = await this.locationsService.report(id);
+        return report;
     }
 }
