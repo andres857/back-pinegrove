@@ -18,6 +18,11 @@ export class DeviceController {
         return this.deviceService.getDevicesByClientId(id);
     }
 
+    @Get('client/:id/count')
+    getCountDevicesByClientId(@Param('id', new ParseUUIDPipe()) id: string): Promise<number> {
+        return this.deviceService.getCountDevicesByClientId(id);
+    }
+
     @Get(':id')
     findOne(@Param('id') id:string ): Promise<SigfoxDevice>{
         return this.deviceService.findOne(id);

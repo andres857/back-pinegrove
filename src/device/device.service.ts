@@ -163,4 +163,10 @@ export class DeviceService {
     
         return locationHistory;
     }
+
+    async getCountDevicesByClientId(clientId): Promise<number> {
+        return await this.sigfoxDeviceRepository.count({
+            where: { client: { id: clientId } }
+        });
+    }
 }

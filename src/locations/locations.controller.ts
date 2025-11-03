@@ -1,9 +1,10 @@
-import { Controller, Post, Body, Get, Param, Put,ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Put,ParseUUIDPipe, Res } from '@nestjs/common';
 import { LocationsService } from './locations.service';
 import { Location } from 'src/entities/location.entity';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { RangeCheckDto } from './dto/isrange.dto';
+import { Response } from 'express';
 
 @Controller('locations')
 export class LocationsController {
@@ -82,4 +83,22 @@ export class LocationsController {
         const report = await this.locationsService.report(id);
         return report;
     }
+
+    // Nuevo endpoint para CSV
+    @Get('report/:idclient/download/csv')
+    async downloadReportCSV(
+        @Param('idclient') idclient: string,
+        @Res() res: Response
+    ) {
+        return await this.locationsService.generateReportCSV(idclient, res);
+    }
+
+  // Nuevo endpoint para Excel
+  @Get('report/:idclient/download/excel')
+  async downloadReportExcel(
+    @Param('idclient') idclient: string,
+    @Res() res: Response
+  ) {
+    return await this.locationsService.generateReportExcel(idclient, res);
+  }
 }

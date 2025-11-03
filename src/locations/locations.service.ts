@@ -9,6 +9,9 @@ import { Client } from "src/entities/client.entity";
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 
+import * as ExcelJS from 'exceljs';
+import { Response } from 'express';
+
 @Injectable()
 export class LocationsService {
 
@@ -462,5 +465,176 @@ async report(idclient) {
         console.log(history);
         return history;
     }
+
+
+    // Función para generar CSV
+    async generateReportCSV(idclient: string, res: Response) {
+      const reportData = await this.report(idclient);
+      const devices = await this.deviceService.getDevicesByClientId(idclient);
+    
+      // Crear CSV para Locations
+      let csvLocations = 'Location,Micro base station,Devices at location,City,Province,Address,Radius (meters)\n';
+      
+      reportData.forEach(location => {
+        csvLocations += `"${location.location}","${location.mbs}",${location.associated_devices},"${location.city || ''}","${location.province || ''}","${location.address || ''}",${location.radius}\n`;
+      });
+    
+      // Crear CSV para Devices
+      let csvDevices = 'Location,Device ID,Device Name,Device Type,Status,Last Seen\n';
+      
+      for (const location of reportData) {
+        if (location.devices?.length) {
+          for (const deviceId of location.devices) {
+            const device = devices.find(d => d.deviceId === deviceId);
+            if (device) {
+              const lastUpdate = new Date(device.lastLocationUpdate);
+              const now = new Date();
+              const diffHours = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
+              const status = diffHours <= 48 ? 'Connected' : 'Disconnected';
+              const lastSeen = this.formatDateLastSeen(device.lastLocationUpdate);
+              
+              csvDevices += `"${location.location}","${device.SigfoxId || deviceId}","${device.friendlyName || ''}","${device.deviceType || ''}","${status}","${lastSeen}"\n`;
+            }
+          }
+        }
+      }
+    
+      // Combinar ambos CSVs
+      const finalCSV = csvLocations + '\n' + csvDevices;
+    
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=report.csv');
+      res.send(finalCSV);
+    }
+    
+    // Función para generar Excel
+    async generateReportExcel(idclient: string, res: Response) {
+      const reportData = await this.report(idclient);
+      const devices = await this.deviceService.getDevicesByClientId(idclient);
+    
+      // Crear workbook
+      const workbook = new ExcelJS.Workbook();
+      
+      // Hoja 1: Locations
+      const locationsSheet = workbook.addWorksheet('Locations');
+      
+      locationsSheet.columns = [
+        { header: 'Location', key: 'location', width: 30 },
+        { header: 'Micro base station', key: 'mbs', width: 20 },
+        { header: 'Devices at location', key: 'devices_count', width: 20 },
+        { header: 'City', key: 'city', width: 20 },
+        { header: 'Province', key: 'province', width: 20 },
+        { header: 'Address', key: 'address', width: 40 },
+        { header: 'Radius (meters)', key: 'radius', width: 15 },
+      ];
+    
+      // Agregar datos de locations
+      reportData.forEach(location => {
+        locationsSheet.addRow({
+          location: location.location,
+          mbs: location.mbs,
+          devices_count: location.associated_devices,
+          city: location.city || '',
+          province: location.province || '',
+          address: location.address || '',
+          radius: location.radius,
+        });
+      });
+    
+      // Estilo para el header
+      locationsSheet.getRow(1).font = { bold: true };
+      locationsSheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFf8f9fa' }
+      };
+    
+      // Hoja 2: Devices
+      const devicesSheet = workbook.addWorksheet('Devices');
+      
+      devicesSheet.columns = [
+        { header: 'Location', key: 'location', width: 30 },
+        { header: 'Device ID', key: 'device_id', width: 20 },
+        { header: 'Device Name', key: 'device_name', width: 25 },
+        { header: 'Device Type', key: 'device_type', width: 20 },
+        { header: 'Status', key: 'status', width: 15 },
+        { header: 'Last Seen', key: 'last_seen', width: 25 },
+      ];
+    
+      // Agregar datos de devices
+      for (const location of reportData) {
+        if (location.devices?.length) {
+          for (const deviceId of location.devices) {
+            const device = devices.find(d => d.deviceId === deviceId);
+            if (device) {
+              const lastUpdate = new Date(device.lastLocationUpdate);
+              const now = new Date();
+              const diffHours = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
+              const status = diffHours <= 48 ? 'Connected' : 'Disconnected';
+              const lastSeen = this.formatDateLastSeen(device.lastLocationUpdate);
+              
+              devicesSheet.addRow({
+                location: location.location,
+                device_id: device.SigfoxId || deviceId,
+                device_name: device.friendlyName || '',
+                device_type: device.deviceType || '',
+                status: status,
+                last_seen: lastSeen,
+              });
+            }
+          }
+        }
+      }
+    
+      // Estilo para el header
+      devicesSheet.getRow(1).font = { bold: true };
+      devicesSheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFf8f9fa' }
+      };
+    
+      // Generar el archivo
+      const buffer = await workbook.xlsx.writeBuffer();
+    
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=report.xlsx');
+      res.send(buffer);
+    }
+    
+private formatDateLastSeen(dateInput: string | Date | null): string {
+  if (!dateInput) return 'No disponible';
+  
+  try {
+    // Convertir a Date si es string
+    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+    const now = new Date();
+    
+    if (isNaN(date.getTime())) {
+      return 'Fecha inválida';
+    }
+
+    const secondsDiff = Math.floor((now.getTime() - date.getTime()) / 1000);
+    const minutesDiff = Math.floor(secondsDiff / 60);
+    const hoursDiff = Math.floor(minutesDiff / 60);
+    const daysDiff = Math.floor(hoursDiff / 24);
+    const monthsDiff = Math.floor(daysDiff / 30);
+
+    if (secondsDiff < 60) {
+      return 'a few seconds ago';
+    } else if (minutesDiff < 60) {
+      return `${minutesDiff} ${minutesDiff === 1 ? 'minute' : 'minutes'} ago`;
+    } else if (hoursDiff < 24) {
+      return `${hoursDiff} ${hoursDiff === 1 ? 'hour' : 'hours'} ago`;
+    } else if (daysDiff < 30) {
+      return `${daysDiff} ${daysDiff === 1 ? 'day' : 'days'} ago`;
+    } else {
+      return `${monthsDiff} ${monthsDiff === 1 ? 'month' : 'months'} ago`;
+    }
+  } catch (error) {
+    console.error('Error al formatear la fecha:', error);
+    return 'Error en fecha';
+  }
+}
 
 }
