@@ -25,6 +25,13 @@ export class DeviceService {
 
     ){}
 
+    statusDevice = (dateString) => {
+        const pastDate = new Date(dateString).getTime();
+        const currentDate = new Date().getTime();
+        const hoursDifference = (currentDate - pastDate) / (1000 * 60 * 60);
+        return hoursDifference <= 48 ? 'Connected' : 'Disconnected';
+    };
+
     async create(createSigfoxDeviceDto: CreateSigfoxDeviceDto): Promise<SigfoxDevice> {  
 
         const existingSigFoxDevice = await this.sigfoxDeviceRepository.findOne({
@@ -100,31 +107,56 @@ export class DeviceService {
     }
 
     async findAll(): Promise<SigfoxDevice[]> {
-        // Solo carga los devices con el cliente
+        // Carga solo los primeros 50 devices con el cliente
         const devices = await this.sigfoxDeviceRepository.find({
             relations: ['client'],
             order: {
-                friendlyName: 'ASC'
+                lastLocationUpdate: 'DESC' // Ordenar por los más recientes primero
             },
-            take: 20
+            take: 50 // Limitar a 50 devices
         });
 
-        // Carga los últimos 100 mensajes para cada device (si realmente los necesitas)
+        // Carga el historial de ubicación para cada device
         for (const device of devices) {
-            device.messages = await this.sigfoxMessageRepository.find({
-                where: { device: { deviceId: device.deviceId } },
-                order: { createdAt: 'DESC' },
-                take: 5
-            });
-            
             device.locationHistory = await this.deviceLocationHistoryRepository.find({
                 where: { device: { deviceId: device.deviceId } },
                 order: { timestamp: 'DESC' },
-                take: 5
+                take: 1
             });
         }
+        
+        const devicesStatus = devices.map(device => ({
+            ...device,
+            status: this.statusDevice(device.lastLocationUpdate)
+        }));
 
-        return devices;
+        return devicesStatus;
+    }
+
+    async findBySigfoxId(sigfoxId: string): Promise<SigfoxDevice> {
+        const device = await this.sigfoxDeviceRepository.findOne({
+            where: { SigfoxId: sigfoxId },
+            relations: ['client']
+        });
+
+        if (!device) {
+            throw new NotFoundException(`Device with SigfoxId ${sigfoxId} not found`);
+        }
+
+        // Carga el historial de ubicación
+        device.locationHistory = await this.deviceLocationHistoryRepository.find({
+            where: { device: { deviceId: device.deviceId } },
+            order: { timestamp: 'DESC' },
+            take: 1
+        });
+
+        // Agrega el status
+        const deviceWithStatus = {
+            ...device,
+            status: this.statusDevice(device.lastLocationUpdate)
+        };
+
+        return deviceWithStatus;
     }
 
     async getDevicesByClientId(clientId): Promise<SigfoxDevice[]> {

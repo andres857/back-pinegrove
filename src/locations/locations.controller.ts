@@ -41,7 +41,6 @@ export class LocationsController {
         };
     }> {
         const result = await this.locationsService.createBulk(createLocationDtos);
-        
         return {
             ...result,
             summary: {
@@ -66,12 +65,6 @@ export class LocationsController {
         );
     }
 
-    @Get('reportold/:id')
-    async getReportData(@Param('id') id: string) {
-        const report = await this.locationsService.generateReport(id);
-        return report
-    }
-
     @Get('history/device/:id')
     async getLocation(@Param('id') id: string){
         const history = await this.locationsService.getHistoryLocationByDevice(id)
@@ -84,7 +77,6 @@ export class LocationsController {
         return report;
     }
 
-    // Nuevo endpoint para CSV
     @Get('report/:idclient/download/csv')
     async downloadReportCSV(
         @Param('idclient') idclient: string,
@@ -93,7 +85,6 @@ export class LocationsController {
         return await this.locationsService.generateReportCSV(idclient, res);
     }
 
-  // Nuevo endpoint para Excel
   @Get('report/:idclient/download/excel')
   async downloadReportExcel(
     @Param('idclient') idclient: string,

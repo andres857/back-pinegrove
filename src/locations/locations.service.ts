@@ -167,7 +167,7 @@ export class LocationsService {
         return distance <= radio/1000;
     }
 
-    // Verificar el estado del dispositivo
+    // Calcular el estado del dispositivo
     statusDevice = (dateString) => {
         const pastDate = new Date(dateString).getTime();
         const currentDate = new Date().getTime();
@@ -175,243 +175,82 @@ export class LocationsService {
         return hoursDifference <= 48 ? 'Connected' : 'Disconnected';
     };
 
-    async generateReport(id) {
 
-        const devicesConnectedArrayTemp = new Map();
-        let devicesConnectedArray = [];
-        let devicesIntransitArray = [];
-        let devicesNotSeenArray = [];
-        let locationsEmptyArray = [];
+    async report(idclient) {
+        const locations = await this.getLocationsByClientId(idclient);
+        const devices = await this.deviceService.getDevicesByClientId(idclient);
 
-        let locations = await this.getLocationsByClientId(id);
-        let devices = await this.deviceService.getDevicesByClientId(id);
-
-        // Obtener la última ubicación del dispositivo
-        let lastUbicationsDevices = await Promise.all(
-            devices.map(async (device) => {                                
-                const lastMessage = await this.sigfoxMessagesService.getLatestMessage(device.deviceId);
+        // Obtener última ubicación de todos los devices
+        const lastUbicationsDevices = await Promise.all(
+            devices.map(async (device) => {
+                const lastLocation = await this.deviceService.getLastLocation(device.deviceId);
                 return {
                     id: device.deviceId,
-                    duplicates: lastMessage.duplicates,
-                    computedLocation: lastMessage.computedLocation,
-                    lastseen: lastMessage.device.lastLocationUpdate,
-                }
+                    status: this.statusDevice(device.lastLocationUpdate),
+                    location: lastLocation?.locationName ?? 'Not Seen',
+                    lastseen: device.lastLocationUpdate,
+                };
             })
         );
 
-        // Obtener los dispositivos que se encuentren conectados
-        let connectedDevices = lastUbicationsDevices.filter(device => {
-            const status = this.statusDevice(device.lastseen);
-            return status === 'Connected';
+        // Crear Map de ubicaciones para búsqueda rápida
+        const locationMap = new Map(
+            locations.map(loc => [loc.name, loc])
+        );
+
+        // Agrupar dispositivos por ubicación
+        const groupedDevices = lastUbicationsDevices.reduce((acc, device) => {
+            if (!acc.has(device.location)) {
+                acc.set(device.location, []);
+            }
+            acc.get(device.location).push(device.id);
+            return acc;
+        }, new Map());
+
+        // Construir resultado
+        const result = [];
+
+        // Agregar ubicaciones con dispositivos
+        groupedDevices.forEach((deviceIds, locationName) => {
+            const locationInfo = locationMap.get(locationName);
+            
+            result.push({
+                index: locationInfo?.index ?? null,
+                location: locationName,
+                mbs: locationInfo?.microbs ?? "",
+                associated_devices: deviceIds.length,
+                id_location: locationInfo?.id ?? null,
+                city: locationInfo?.city ?? null,
+                province: locationInfo?.province ?? null,
+                address: locationInfo?.address ?? null,
+                radius: locationInfo?.radiusMeters ?? 0,
+                devices: deviceIds
+            });
         });
 
-        // evaluar si el dispositivo se encuentra en rango de alguna location
-        connectedDevices.forEach(device => {
-            let locationisEmpty = false;
-            let isInAnyRange = false; // Flag to track if device is in range of any location
-            const deviceCoordinates = {
-                lat: Number(device.computedLocation.lat),
-                lng: Number(device.computedLocation.lng)
-            };
-
-            locations.forEach(location => {
-                const radio = Number(location.radiusMeters);
-                
-                const locationCoordinates = {
-                    lat: Number(location.latitude),
-                    lng: Number(location.longitude)
-                };
-                const isRange = this.calculateDistance(locationCoordinates, deviceCoordinates, radio);
-                if (isRange) {
-                    isInAnyRange = true;
-                    locationisEmpty = false;
-
-                    // Si esta ubicación no está en el Map, la inicializamos
-                    if (!devicesConnectedArrayTemp.has(location.id)) {
-                        devicesConnectedArrayTemp.set(location.id, {
-                            index: location.index,
-                            location: location.name,
-                            mbs: location.microbs,
-                            associated_devices: 0,
-                            id_location: location.id,
-                            city: location.city,
-                            province: location.province,
-                            address: location.address,
-                            radius: location.radiusMeters,
-                            devices: []
-                        });
-                    }
-
-                    const locationData = devicesConnectedArrayTemp.get(location.id);
-                    locationData.associated_devices++;
-                    locationData.devices.push(device.id);
-                    return; 
-                }
-            });
-
-            devicesConnectedArray = Array.from(devicesConnectedArrayTemp.values());
-
-            // Determinar si el dispositivo se encuentra en la ubicación "In transit"
-            if (!isInAnyRange) {
-                const inTransitLocation = locations.find(location => location.name === 'In transit');
-                if (!devicesIntransitArray.length) {
-                    devicesIntransitArray = [{
-                        index: inTransitLocation.index,
-                        location: inTransitLocation.name,
-                        mbs: inTransitLocation.microbs,
-                        associated_devices: 0,
-                        id_location: inTransitLocation.id,
-                        city: inTransitLocation.city,
-                        province: inTransitLocation.province,
-                        address: inTransitLocation.address,
-                        radius: inTransitLocation.radiusMeters,
-                        devices: []
-                    }];
-                }
-                devicesIntransitArray[0].devices.push(device.id);
-                devicesIntransitArray[0].associated_devices++;
+        // Agregar ubicaciones vacías
+        locations.forEach(location => {
+            const isSpecialLocation = ['In transit', 'Not Seen'].includes(location.name);
+            const hasDevices = groupedDevices.has(location.name);
+            
+            if (!isSpecialLocation && !hasDevices) {
+                result.push({
+                    index: location.index,
+                    location: location.name,
+                    mbs: location.microbs || "",
+                    associated_devices: 0,
+                    id_location: location.id,
+                    city: location.city,
+                    province: location.province,
+                    address: location.address,
+                    radius: location.radiusMeters,
+                    devices: []
+                });
             }
         });
 
-        // Obtener los dispositivos que se encuentren desconectados
-        let disconnectedDevices = lastUbicationsDevices.filter(device => {
-            const status = this.statusDevice(device.lastseen);
-            return status === 'Disconnected';
-        });
-        
-        const notSeenLocation = locations.find(location => location.name === 'Not Seen');
-        
-        // Creamos el objeto locationProperties una sola vez
-        const locationProperties = {
-            index: notSeenLocation ? notSeenLocation.index : null,
-            location: 'Not Seen',
-            mbs: notSeenLocation ? notSeenLocation.microbs : null,
-            associated_devices: 0,
-            id_location: notSeenLocation ? notSeenLocation.id : null,
-            city: notSeenLocation ? notSeenLocation.city : null,
-            province: notSeenLocation ? notSeenLocation.province : null,
-            address: notSeenLocation ? notSeenLocation.address : null,
-            radius: notSeenLocation ? notSeenLocation.radiusMeters : 0,
-            devices: [] // Este array almacenará todos los IDs
-        };
-
-        disconnectedDevices.forEach(device => {
-            locationProperties.associated_devices++;
-            locationProperties.devices.push(device.id);
-        });
-
-        devicesNotSeenArray = [locationProperties];
-
-        // Obtener las locations que no tienen dispositivos asociados
-        const locationsWithDevices = new Set(devicesConnectedArrayTemp.keys());
-        const emptyLocations = locations.filter(location => {
-            // Excluimos ubicaciones especiales como "In Transit" o "Not Seen"
-            const isSpecialLocation = location.name === 'In Transit' || location.name === 'Not Seen';
-            return !isSpecialLocation && !locationsWithDevices.has(location.id);
-        });
-
-        function formatLocationStructure(location) {
-            return {
-                index: location.index,
-                location: location.name,        // Nota que usamos 'name' del objeto original
-                mbs: location.microbs,          // Y 'microbs' del original
-                associated_devices: 0,          // Siempre 0 para ubicaciones vacías
-                id_location: location.id,       // 'id' del original
-                city: location.city,
-                province: location.province,
-                address: location.address,
-                radius: location.radiusMeters,  // 'radiusMeters' del original
-                devices: []                     // Siempre array vacío
-            };
-        }
-        
-        // Aplicamos el formato a todas las ubicaciones vacías
-        const formattedEmptyLocations = emptyLocations.map(formatLocationStructure);
-
-        // Consolidar los arrays
-        const consolidatedArray = [
-            ...devicesConnectedArray,
-            ...devicesIntransitArray,
-            ...devicesNotSeenArray,
-            ...formattedEmptyLocations
-        ];
-        return consolidatedArray
+        return result;
     }
-
-
-async report(idclient) {
-    const locations = await this.getLocationsByClientId(idclient);
-    const devices = await this.deviceService.getDevicesByClientId(idclient);
-
-    // Obtener última ubicación de todos los devices
-    const lastUbicationsDevices = await Promise.all(
-        devices.map(async (device) => {
-            const lastLocation = await this.deviceService.getLastLocation(device.deviceId);
-            return {
-                id: device.deviceId,
-                location: lastLocation?.locationName ?? 'Not Seen',
-            };
-        })
-    );
-
-    // Crear Map de ubicaciones para búsqueda rápida
-    const locationMap = new Map(
-        locations.map(loc => [loc.name, loc])
-    );
-
-    // Agrupar dispositivos por ubicación
-    const groupedDevices = lastUbicationsDevices.reduce((acc, device) => {
-        if (!acc.has(device.location)) {
-            acc.set(device.location, []);
-        }
-        acc.get(device.location).push(device.id);
-        return acc;
-    }, new Map());
-
-    // Construir resultado
-    const result = [];
-
-    // Agregar ubicaciones con dispositivos
-    groupedDevices.forEach((deviceIds, locationName) => {
-        const locationInfo = locationMap.get(locationName);
-        
-        result.push({
-            index: locationInfo?.index ?? null,
-            location: locationName,
-            mbs: locationInfo?.microbs ?? "",
-            associated_devices: deviceIds.length,
-            id_location: locationInfo?.id ?? null,
-            city: locationInfo?.city ?? null,
-            province: locationInfo?.province ?? null,
-            address: locationInfo?.address ?? null,
-            radius: locationInfo?.radiusMeters ?? 0,
-            devices: deviceIds
-        });
-    });
-
-    // Agregar ubicaciones vacías
-    locations.forEach(location => {
-        const isSpecialLocation = ['In transit', 'Not Seen'].includes(location.name);
-        const hasDevices = groupedDevices.has(location.name);
-        
-        if (!isSpecialLocation && !hasDevices) {
-            result.push({
-                index: location.index,
-                location: location.name,
-                mbs: location.microbs || "",
-                associated_devices: 0,
-                id_location: location.id,
-                city: location.city,
-                province: location.province,
-                address: location.address,
-                radius: location.radiusMeters,
-                devices: []
-            });
-        }
-    });
-
-    return result;
-}
 
     async getLocation(clientId, coordinatesDevice, duplicates){
         const idLocationInstransit = '1432658f-06ad-45fb-8ce9-6745f1bb35f1'        
@@ -465,7 +304,6 @@ async report(idclient) {
         console.log(history);
         return history;
     }
-
 
     // Función para generar CSV
     async generateReportCSV(idclient: string, res: Response) {
@@ -602,39 +440,39 @@ async report(idclient) {
       res.send(buffer);
     }
     
-private formatDateLastSeen(dateInput: string | Date | null): string {
-  if (!dateInput) return 'No disponible';
-  
-  try {
-    // Convertir a Date si es string
-    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-    const now = new Date();
+    private formatDateLastSeen(dateInput: string | Date | null): string {
+    if (!dateInput) return 'No disponible';
     
-    if (isNaN(date.getTime())) {
-      return 'Fecha inválida';
-    }
+    try {
+        // Convertir a Date si es string
+        const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+        const now = new Date();
+        
+        if (isNaN(date.getTime())) {
+        return 'Fecha inválida';
+        }
 
-    const secondsDiff = Math.floor((now.getTime() - date.getTime()) / 1000);
-    const minutesDiff = Math.floor(secondsDiff / 60);
-    const hoursDiff = Math.floor(minutesDiff / 60);
-    const daysDiff = Math.floor(hoursDiff / 24);
-    const monthsDiff = Math.floor(daysDiff / 30);
+        const secondsDiff = Math.floor((now.getTime() - date.getTime()) / 1000);
+        const minutesDiff = Math.floor(secondsDiff / 60);
+        const hoursDiff = Math.floor(minutesDiff / 60);
+        const daysDiff = Math.floor(hoursDiff / 24);
+        const monthsDiff = Math.floor(daysDiff / 30);
 
-    if (secondsDiff < 60) {
-      return 'a few seconds ago';
-    } else if (minutesDiff < 60) {
-      return `${minutesDiff} ${minutesDiff === 1 ? 'minute' : 'minutes'} ago`;
-    } else if (hoursDiff < 24) {
-      return `${hoursDiff} ${hoursDiff === 1 ? 'hour' : 'hours'} ago`;
-    } else if (daysDiff < 30) {
-      return `${daysDiff} ${daysDiff === 1 ? 'day' : 'days'} ago`;
-    } else {
-      return `${monthsDiff} ${monthsDiff === 1 ? 'month' : 'months'} ago`;
+        if (secondsDiff < 60) {
+        return 'a few seconds ago';
+        } else if (minutesDiff < 60) {
+        return `${minutesDiff} ${minutesDiff === 1 ? 'minute' : 'minutes'} ago`;
+        } else if (hoursDiff < 24) {
+        return `${hoursDiff} ${hoursDiff === 1 ? 'hour' : 'hours'} ago`;
+        } else if (daysDiff < 30) {
+        return `${daysDiff} ${daysDiff === 1 ? 'day' : 'days'} ago`;
+        } else {
+        return `${monthsDiff} ${monthsDiff === 1 ? 'month' : 'months'} ago`;
+        }
+    } catch (error) {
+        console.error('Error al formatear la fecha:', error);
+        return 'Error en fecha';
     }
-  } catch (error) {
-    console.error('Error al formatear la fecha:', error);
-    return 'Error en fecha';
-  }
-}
+    }
 
 }

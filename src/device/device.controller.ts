@@ -23,6 +23,11 @@ export class DeviceController {
         return this.deviceService.getCountDevicesByClientId(id);
     }
 
+    @Get('search/:sigfoxId')
+    findBySigfoxId(@Param('sigfoxId') sigfoxId: string) {
+        return this.deviceService.findBySigfoxId(sigfoxId);
+    }
+
     @Get(':id')
     findOne(@Param('id') id:string ): Promise<SigfoxDevice>{
         return this.deviceService.findOne(id);
